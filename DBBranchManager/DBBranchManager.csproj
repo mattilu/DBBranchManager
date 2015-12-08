@@ -63,7 +63,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Activators\IActivator.cs" />
     <Compile Include="Application.cs" />
     <Compile Include="Components\BranchComponent.cs" />
     <Compile Include="Components\FileSynchronizer.cs" />
@@ -71,12 +70,19 @@
     <Compile Include="Components\ReleaseComponent.cs" />
     <Compile Include="Components\ReportsComponent.cs" />
     <Compile Include="Components\RestoreDatabaseComponent.cs" />
+    <Compile Include="Components\SuperComponent.cs" />
     <Compile Include="Components\TemplatesComponent.cs" />
     <Compile Include="Config\BranchInfo.cs" />
     <Compile Include="Config\Configuration.cs" />
     <Compile Include="Config\DatabaseConnectionInfo.cs" />
     <Compile Include="Config\DatabaseInfo.cs" />
     <Compile Include="Dependencies\DependencyGraph.cs" />
+    <Compile Include="Dependencies\StatefulDependencyGraph.cs" />
+    <Compile Include="Dependencies\IDependencyGraph.cs" />
+    <Compile Include="Dependencies\IMutableDependencyGraph.cs" />
+    <Compile Include="Dependencies\IMutableStatefulDependencyGraph.cs" />
+    <Compile Include="Dependencies\IStatefulDependencyGraph.cs" />
+    <Compile Include="Dependencies\NodeState.cs" />
     <Compile Include="Invalidators\FileSystemWatcherInvalidator.cs" />
     <Compile Include="Invalidators\IInvalidator.cs" />
     <Compile Include="Program.cs" />

@@ -14,6 +14,7 @@ namespace DBBranchManager.Config
         public string ActiveBranch { get; set; }
         public string BackupBranch { get; set; }
         public int ExecutionDelay { get; set; }
+        public bool DryRun { get; set; }
 
         public static Configuration LoadFromJson(string path)
         {
@@ -49,7 +50,8 @@ namespace DBBranchManager.Config
                     }).ToList(),
                     ActiveBranch = (string)jConfig["activeBranch"],
                     BackupBranch = (string)jConfig["backupBranch"],
-                    ExecutionDelay = (int?)jConfig["executionDelay"] ?? 3000
+                    ExecutionDelay = (int?)jConfig["executionDelay"] ?? 3000,
+                    DryRun = (bool)jConfig["dryRun"]
                 };
             }
         }

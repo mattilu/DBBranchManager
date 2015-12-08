@@ -16,14 +16,14 @@ namespace DBBranchManager.Components
             mDeployPath = deployPath;
         }
 
-        public IEnumerable<string> Run(ComponentState componentState)
+        public IEnumerable<string> Run(ComponentRunState runState)
         {
             if (Directory.Exists(mTemplatesPath))
             {
                 yield return string.Format("Templates {0} -> {1}", mTemplatesPath, mDeployPath);
 
                 var synchronizer = new FileSynchronizer(mTemplatesPath, mDeployPath, TemplateFileRegex);
-                foreach (var log in synchronizer.Run(componentState))
+                foreach (var log in synchronizer.Run(runState))
                 {
                     yield return log;
                 }

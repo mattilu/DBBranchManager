@@ -1,4 +1,5 @@
 ﻿using DBBranchManager.Config;
+using DBBranchManager.Utils;
 using System.Collections.Generic;
 
 namespace DBBranchManager.Components
@@ -12,7 +13,7 @@ namespace DBBranchManager.Components
             mDatabaseInfo = databaseInfo;
         }
 
-        public IEnumerable<string> Run(ComponentState componentState)
+        public IEnumerable<string> Run(ComponentRunState runState)
         {
             var script = string.Format(@"
 USE [master]
@@ -23,11 +24,8 @@ ALTER DATABASE [{0}] SET MULTI_USER
 
             yield return string.Format("Restoring {0}", mDatabaseInfo.Name);
 
-            Utils.SqlUtils.SqlCmdExec(mDatabaseInfo.Connection, script);
+            if (!runState.DryRun)
+                SqlUtils.SqlCmdExec(mDatabaseInfo.Connection, script);
         }
     }
-}
-
-namespace DBBranchManager.Utils
-{
 }

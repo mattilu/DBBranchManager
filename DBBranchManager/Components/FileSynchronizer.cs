@@ -19,14 +19,15 @@ namespace DBBranchManager.Components
             mFilter = filter;
         }
 
-        public IEnumerable<string> Run(ComponentState componentState)
+        public IEnumerable<string> Run(ComponentRunState runState)
         {
             if (Directory.Exists(mSourcePath))
             {
                 if (!Directory.Exists(mDestinationPath))
                 {
                     yield return string.Format("Creating {0}", mDestinationPath);
-                    Directory.CreateDirectory(mDestinationPath);
+                    if (!runState.DryRun)
+                        Directory.CreateDirectory(mDestinationPath);
                 }
 
                 foreach (var f in FileUtils.EnumerateFiles2(mSourcePath, mFilter.IsMatch))
@@ -46,7 +47,8 @@ namespace DBBranchManager.Components
                         continue;
                     }
 
-                    fileInfo.CopyTo(destFile, true);
+                    if (!runState.DryRun)
+                        fileInfo.CopyTo(destFile, true);
 
                     yield return string.Format("Copying {0} -> {1}", fileName, mDestinationPath);
                 }

@@ -13,7 +13,7 @@ namespace DBBranchManager.Components
             mState = state;
         }
 
-        public IEnumerable<string> Run(ComponentState componentState)
+        public IEnumerable<string> Run(ComponentRunState runState)
         {
             yield return string.Format("Branch {0}: {1}", mBranchName, mState);
         }

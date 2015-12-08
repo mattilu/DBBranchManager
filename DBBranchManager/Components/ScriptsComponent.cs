@@ -19,7 +19,7 @@ namespace DBBranchManager.Components
             mDatabaseConnection = databaseConnection;
         }
 
-        public IEnumerable<string> Run(ComponentState componentState)
+        public IEnumerable<string> Run(ComponentRunState runState)
         {
             if (Directory.Exists(mScriptsPath))
             {
@@ -58,7 +58,8 @@ TRUNCATE TABLE [Interdependencies].[TBC_CACHE_ITEM_DEPENDENCY]
                 string errors = null;
                 try
                 {
-                    SqlUtils.SqlCmdExec(mDatabaseConnection, withRollback);
+                    if (!runState.DryRun)
+                        SqlUtils.SqlCmdExec(mDatabaseConnection, withRollback);
                 }
                 catch (SqlCmdFailedException ex)
                 {
@@ -67,7 +68,7 @@ TRUNCATE TABLE [Interdependencies].[TBC_CACHE_ITEM_DEPENDENCY]
 
                 if (errors != null)
                 {
-                    componentState.Error = true;
+                    runState.Error = true;
                     yield return errors;
                     yield break;
                 }
@@ -75,7 +76,8 @@ TRUNCATE TABLE [Interdependencies].[TBC_CACHE_ITEM_DEPENDENCY]
                 var withCommit = script + "\nGO\n\n--ROLLBACK TRANSACTION\nCOMMIT TRANSACTION";
                 yield return "Running script with COMMIT";
 
-                SqlUtils.SqlCmdExec(mDatabaseConnection, withCommit);
+                if (!runState.DryRun)
+                    SqlUtils.SqlCmdExec(mDatabaseConnection, withCommit);
             }
         }
     }

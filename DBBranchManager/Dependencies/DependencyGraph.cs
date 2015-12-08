@@ -1,96 +1,53 @@
-﻿using DBBranchManager.Components;
-using DBBranchManager.Utils;
+﻿using DBBranchManager.Utils;
 using QuickGraph;
+using QuickGraph.Algorithms;
 using System.Collections.Generic;
 using System.Linq;
 
 namespace DBBranchManager.Dependencies
 {
-    internal interface IDependencyGraph : IBidirectionalGraph<IComponent, IEdge<IComponent>>
+    internal class DependencyGraph<T> : IMutableDependencyGraph<T>
+        where T : class
     {
-        void Invalidate(IComponent component);
-
-        void Validate(IComponent component);
-
-        IEnumerable<IComponent> GetValidationChain(IComponent target);
-    }
-
-    internal class DependencyGraph : BidirectionalGraph<IComponent, IEdge<IComponent>>, IDependencyGraph
-    {
-        private readonly Dictionary<IComponent, bool> mValidityMap;
+        private readonly IMutableBidirectionalGraph<T, IEdge<T>> mGraph;
 
         public DependencyGraph()
         {
-            mValidityMap = new Dictionary<IComponent, bool>(new IdentityComparer<IComponent>());
+            mGraph = new BidirectionalGraph<T, IEdge<T>>();
         }
 
-        protected override void OnVertexAdded(IComponent args)
+        public void AddDependency(T source, T target)
         {
-            base.OnVertexAdded(args);
-            mValidityMap.Add(args, false);
+            Graph.AddVerticesAndEdge(new Edge<T>(source, target));
         }
 
-        protected override void OnVertexRemoved(IComponent args)
+        public void AddNode(T node)
         {
-            base.OnVertexRemoved(args);
-            mValidityMap.Remove(args);
+            Graph.AddVertex(node);
         }
 
-        public void Invalidate(IComponent component)
+        public IEnumerable<T> GetPath(T source, T target)
         {
-            mValidityMap[component] = false;
-            foreach (var outEdge in OutEdges(component))
-            {
-                var c = outEdge.Target;
-                if (mValidityMap[c])
-                    Invalidate(c);
-            }
+            var g = GetSubGraphTo(GetSubGraphFrom(Graph, source), target);
+            return GetPath(g);
         }
 
-        public void Validate(IComponent component)
+        public IEnumerable<T> GetPath()
         {
-            mValidityMap[component] = true;
+            var g = new BidirectionalGraph<T, IEdge<T>>();
+            Graph.Clone(x => x, (x, f, t) => x, g);
+            return GetPath(g);
         }
 
-        public IEnumerable<IComponent> GetValidationChain(IComponent target)
+        protected IMutableBidirectionalGraph<T, IEdge<T>> Graph
         {
-            if (mValidityMap[target])
-                return Enumerable.Empty<IComponent>();
+            get { return mGraph; }
+        }
 
-            var cloned = new BidirectionalGraph<IComponent, IEdge<IComponent>>();
-
-            var visited = new HashSet<IComponent>();
-            var toVisit = new Queue<IComponent>();
-            toVisit.Enqueue(target);
-
-            while (toVisit.Count > 0)
-            {
-                var component = toVisit.Dequeue();
-                if (visited.Contains(component))
-                    continue;
-
-                var inEdges = InEdges(component).ToList();
-                cloned.AddVerticesAndEdgeRange(inEdges);
-                visited.Add(component);
-
-                if (inEdges.Count > 0)
-                {
-                    foreach (var inEdge in inEdges)
-                    {
-                        toVisit.Enqueue(inEdge.Source);
-                    }
-                }
-                else
-                {
-                    cloned.AddVertex(component);
-                }
-            }
-
-            var result = new LinkedList<IComponent>();
-            var candidates = new HashSet<IComponent>
-            {
-                target
-            };
+        protected static IEnumerable<T> GetPath(IMutableBidirectionalGraph<T, IEdge<T>> graph)
+        {
+            var result = new LinkedList<T>();
+            var candidates = new HashSet<T>(graph.Vertices.Where(graph.IsOutEdgesEmpty), new IdentityComparer<T>());
 
             while (candidates.Count > 0)
             {
@@ -99,13 +56,67 @@ namespace DBBranchManager.Dependencies
 
                 result.AddFirst(component);
 
-                var inEdges = cloned.InEdges(component).ToList();
-                cloned.RemoveVertex(component);
+                var inEdges = graph.InEdges(component).ToList();
+                graph.RemoveVertex(component);
 
                 foreach (var inEdge in inEdges)
                 {
-                    if (!cloned.OutEdges(inEdge.Source).Any())
+                    if (graph.IsOutEdgesEmpty(inEdge.Source))
                         candidates.Add(inEdge.Source);
+                }
+            }
+
+            return result;
+        }
+
+        protected static IMutableBidirectionalGraph<T, IEdge<T>> GetSubGraphFrom(IBidirectionalGraph<T, IEdge<T>> graph, T source)
+        {
+            var result = new BidirectionalGraph<T, IEdge<T>>();
+
+            var visited = new HashSet<T>(new IdentityComparer<T>());
+            var toVisit = new Queue<T>();
+            toVisit.Enqueue(source);
+
+            while (toVisit.Count > 0)
+            {
+                var node = toVisit.Dequeue();
+
+                var outEdges = graph.OutEdges(node);
+                visited.Add(node);
+                result.AddVertex(node);
+
+                foreach (var outEdge in outEdges)
+                {
+                    if (!visited.Contains(outEdge.Target))
+                        toVisit.Enqueue(outEdge.Target);
+                    result.AddVerticesAndEdge(outEdge);
+                }
+            }
+
+            return result;
+        }
+
+        protected static IMutableBidirectionalGraph<T, IEdge<T>> GetSubGraphTo(IBidirectionalGraph<T, IEdge<T>> graph, T target)
+        {
+            var result = new BidirectionalGraph<T, IEdge<T>>();
+
+            var visited = new HashSet<T>(new IdentityComparer<T>());
+            var toVisit = new Queue<T>();
+            toVisit.Enqueue(target);
+
+            while (toVisit.Count > 0)
+            {
+                var node = toVisit.Dequeue();
+
+                var inEdges = graph.InEdges(node);
+                visited.Add(node);
+                result.AddVertex(node);
+
+                foreach (var inEdge in inEdges)
+                {
+                    if (!visited.Contains(inEdge.Source))
+                        toVisit.Enqueue(inEdge.Source);
+                    result.AddVerticesAndEdge(inEdge);
                 }
             }
 
