@@ -32,25 +32,25 @@ namespace DBBranchManager.Components
 
                 foreach (var f in FileUtils.EnumerateFiles2(mSourcePath, mFilter.IsMatch))
                 {
-                    var file = f.Item1;
-                    var fileName = f.Item2;
+                    var fileName = f.FileName;
                     Debug.Assert(fileName != null, "fileName != null");
 
                     var destFile = Path.Combine(mDestinationPath, fileName);
 
-                    var fileInfo = new FileInfo(file);
+                    var fileInfo = new FileInfo(f.FullPath);
                     var destFileInfo = new FileInfo(destFile);
 
                     if (destFileInfo.Exists && destFileInfo.LastWriteTimeUtc == fileInfo.LastWriteTimeUtc)
                     {
                         yield return string.Format("Skipping {0}", fileName);
-                        continue;
                     }
+                    else
+                    {
+                        yield return string.Format("Copying {0} -> {1}", fileName, mDestinationPath);
 
-                    if (!runState.DryRun)
-                        fileInfo.CopyTo(destFile, true);
-
-                    yield return string.Format("Copying {0} -> {1}", fileName, mDestinationPath);
+                        if (!runState.DryRun)
+                            fileInfo.CopyTo(destFile, true);
+                    }
                 }
             }
         }

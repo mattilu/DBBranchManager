@@ -46,20 +46,20 @@ TRUNCATE TABLE [Interdependencies].[TBC_CACHE_ITEM_DEPENDENCY]
                 {
                     if (ScriptFileRegex.IsMatch(file))
                     {
-                        sb.AppendFormat("\nGO\n:r $(path)\\\"{0}\"", file);
+                        sb.AppendFormat("\nPRINT 'BEGIN {0}'\nGO\n:r $(path)\\\"{0}\"\nPRINT 'END {0}'\nGO", file);
                     }
                 }
 
+                sb.Append("\nGO\n\n--ROLLBACK TRANSACTION\nPRINT 'Committing...'\nCOMMIT TRANSACTION");
                 var script = sb.ToString();
 
-                var withRollback = script + "\nGO\n\nROLLBACK TRANSACTION\n--COMMIT TRANSACTION";
-                yield return "Running script with ROLLBACK";
+                yield return "Running script...";
 
                 string errors = null;
                 try
                 {
                     if (!runState.DryRun)
-                        SqlUtils.SqlCmdExec(mDatabaseConnection, withRollback);
+                        SqlUtils.SqlCmdExec(mDatabaseConnection, script);
                 }
                 catch (SqlCmdFailedException ex)
                 {
@@ -72,12 +72,6 @@ TRUNCATE TABLE [Interdependencies].[TBC_CACHE_ITEM_DEPENDENCY]
                     yield return errors;
                     yield break;
                 }
-
-                var withCommit = script + "\nGO\n\n--ROLLBACK TRANSACTION\nCOMMIT TRANSACTION";
-                yield return "Running script with COMMIT";
-
-                if (!runState.DryRun)
-                    SqlUtils.SqlCmdExec(mDatabaseConnection, withCommit);
             }
         }
     }

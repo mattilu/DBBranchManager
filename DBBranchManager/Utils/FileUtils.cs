@@ -2,13 +2,10 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace DBBranchManager.Utils
 {
-    static class FileUtils
+    internal static class FileUtils
     {
         public static IEnumerable<string> EnumerateFiles(string path, Func<string, bool> filter)
         {
@@ -18,12 +15,34 @@ namespace DBBranchManager.Utils
                 .OrderBy(x => x, new NaturalSortComparer());
         }
 
-        public static IEnumerable<Tuple<string, string>> EnumerateFiles2(string path, Func<string, bool> filter)
+        public class FileData
+        {
+            private readonly string mFullPath;
+            private readonly string mFileName;
+
+            public FileData(string fullPath)
+            {
+                mFullPath = fullPath;
+                mFileName = Path.GetFileName(fullPath);
+            }
+
+            public string FullPath
+            {
+                get { return mFullPath; }
+            }
+
+            public string FileName
+            {
+                get { return mFileName; }
+            }
+        }
+
+        public static IEnumerable<FileData> EnumerateFiles2(string path, Func<string, bool> filter)
         {
             return Directory.EnumerateFiles(path)
-                .Select(x => Tuple.Create(x, Path.GetFileName(x)))
-                .Where(x => filter(x.Item2))
-                .OrderBy(x => x.Item2, new NaturalSortComparer());
+                .Select(x => new FileData(x))
+                .Where(x => filter(x.FileName))
+                .OrderBy(x => x.FileName, new NaturalSortComparer());
         }
     }
 }
