@@ -14,6 +14,10 @@ namespace DBBranchManager.Dependencies
         public DependencyGraph()
         {
             mGraph = new BidirectionalGraph<T, IEdge<T>>();
+            mGraph.VertexAdded += OnGraphVertexAdded;
+            mGraph.VertexRemoved += OnGraphVertexRemoved;
+            mGraph.EdgeAdded += OnGraphEdgeAdded;
+            mGraph.EdgeRemoved += OnGraphEdgeRemoved;
         }
 
         public void AddDependency(T source, T target)
@@ -121,6 +125,42 @@ namespace DBBranchManager.Dependencies
             }
 
             return result;
+        }
+
+        protected virtual void OnNodeAdded(T node)
+        {
+        }
+
+        protected virtual void OnNodeRemoved(T node)
+        {
+        }
+
+        protected virtual void OnDependencyAdded(T from, T to)
+        {
+        }
+
+        protected virtual void OnDependencyRemoved(T from, T to)
+        {
+        }
+
+        private void OnGraphVertexAdded(T vertex)
+        {
+            OnNodeAdded(vertex);
+        }
+
+        private void OnGraphVertexRemoved(T vertex)
+        {
+            OnNodeRemoved(vertex);
+        }
+
+        private void OnGraphEdgeAdded(IEdge<T> e)
+        {
+            OnDependencyAdded(e.Source, e.Target);
+        }
+
+        private void OnGraphEdgeRemoved(IEdge<T> e)
+        {
+            OnDependencyRemoved(e.Source, e.Target);
         }
     }
 }

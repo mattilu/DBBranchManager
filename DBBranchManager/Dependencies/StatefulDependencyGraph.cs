@@ -44,5 +44,15 @@ namespace DBBranchManager.Dependencies
         {
             return mStatesMap[node];
         }
+
+        protected override void OnNodeAdded(T node)
+        {
+            mStatesMap[node] = NodeState.Invalid;
+        }
+
+        protected override void OnNodeRemoved(T node)
+        {
+            mStatesMap.Remove(node);
+        }
     }
 }
