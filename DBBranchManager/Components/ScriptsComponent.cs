@@ -46,7 +46,7 @@ TRUNCATE TABLE [Interdependencies].[TBC_CACHE_ITEM_DEPENDENCY]
                 {
                     if (ScriptFileRegex.IsMatch(file))
                     {
-                        sb.AppendFormat("\nPRINT 'BEGIN {0}'\nGO\n:r $(path)\\\"{0}\"\nPRINT 'END {0}'\nGO", file);
+                        sb.AppendFormat("\nPRINT 'BEGIN {0}'\nGO\n:r $(path)\\\"{0}\"\nGO\nPRINT 'END {0}'", file);
                     }
                 }
 
