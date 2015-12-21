@@ -16,6 +16,7 @@ namespace DBBranchManager
     {
         private static readonly Regex ToDeployRegex = new Regex("^(?:to[ _]deploy).*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
+        private readonly Configuration mConfiguration;
         private readonly List<DatabaseInfo> mDatabases;
         private readonly List<IInvalidator> mInvalidators;
         private readonly Dictionary<string, IComponent> mBranchComponents;
@@ -30,6 +31,8 @@ namespace DBBranchManager
 
         public Application(Configuration config)
         {
+            mConfiguration = config;
+
             mDatabases = config.Databases;
             mInvalidators = new List<IInvalidator>();
             mBranchComponents = new Dictionary<string, IComponent>();
@@ -144,6 +147,7 @@ namespace DBBranchManager
 
                     // Delay elapsed without modifications. DO IT!
                     Console.WriteLine("[{0:T}] Shit's going down!\n", DateTime.Now);
+                    Beep("start");
 
                     var chain = mDependencyGraph.GetPath(mBranchComponents[mBackupBranch], mBranchComponents[mActiveBranch]).ToList();
                     if (chain.Count > 0)
@@ -160,6 +164,8 @@ namespace DBBranchManager
                                 if (s.Error)
                                 {
                                     Console.WriteLine("[{0:T}] Blocking Errors Detected ):", DateTime.Now);
+                                    Beep("error");
+
                                     return;
                                 }
                             }
@@ -169,6 +175,7 @@ namespace DBBranchManager
                     }
 
                     Console.WriteLine("\n[{0:T}] Success!\n", DateTime.Now);
+                    Beep("success");
                 }
                 finally
                 {
@@ -254,6 +261,28 @@ namespace DBBranchManager
                     Console.WriteLine("[{0:T}] Pending changes detected...", DateTime.Now);
                     mDelayTimer.Change(mTimerDelay, Timeout.Infinite);
                 }
+            }
+        }
+
+        private void Beep(int frequency, int duration, int times, float dutyTime)
+        {
+            var time = (float)duration / times;
+            var onTime = (int)(time * dutyTime);
+            var offTime = (int)(time - onTime);
+
+            while (times-- > 0)
+            {
+                Console.Beep(frequency, onTime);
+                Thread.Sleep(offTime);
+            }
+        }
+
+        private void Beep(string reason)
+        {
+            BeepInfo beep;
+            if (mConfiguration.Beeps.TryGetValue(reason, out beep))
+            {
+                Beep(beep.Frequency, beep.Duration, beep.Times, beep.DutyTime);
             }
         }
     }
