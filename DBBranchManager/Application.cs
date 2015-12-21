@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace DBBranchManager
 {
@@ -24,6 +25,8 @@ namespace DBBranchManager
         private readonly Timer mDelayTimer;
         private readonly int mTimerDelay;
         private readonly bool mDryRun;
+        private bool mPaused;
+        private bool mPendingChanges;
 
         public Application(Configuration config)
         {
@@ -46,6 +49,9 @@ namespace DBBranchManager
             mActiveBranch = config.ActiveBranch;
             mBackupBranch = config.BackupBranch;
             mDryRun = config.DryRun;
+
+            mPaused = false;
+            mPendingChanges = false;
         }
 
         private IStatefulDependencyGraph<IComponent> CreateDependencyGraph(Configuration config, FileSystemWatcherInvalidator fsInvalidator)
@@ -129,33 +135,45 @@ namespace DBBranchManager
         {
             lock (this)
             {
-                // Delay elapsed without modifications. DO IT!
-                Console.WriteLine("[{0:T}] Shit's going down!\n", DateTime.Now);
-
-                var chain = mDependencyGraph.GetPath(mBranchComponents[mBackupBranch], mBranchComponents[mActiveBranch]).ToList();
-                if (chain.Count > 0)
+                try
                 {
-                    // Add RestoreDatabaseComponents
-                    var toRun = mDatabases.Select(x => new RestoreDatabaseComponent(x)).Union(chain);
-
-                    var s = new ComponentRunState(mDryRun);
-                    foreach (var component in toRun)
+                    if (mPaused)
                     {
-                        foreach (var logLine in component.Run(s))
-                        {
-                            Console.WriteLine("[{0:T}] {1}", DateTime.Now, logLine);
-                            if (s.Error)
-                            {
-                                Console.WriteLine("[{0:T}] Blocking Errors Detected ):", DateTime.Now);
-                                return;
-                            }
-                        }
-
-                        //mDependencyGraph.Validate(component);
+                        return;
                     }
-                }
 
-                Console.WriteLine("\n[{0:T}] Success!\n", DateTime.Now);
+                    // Delay elapsed without modifications. DO IT!
+                    Console.WriteLine("[{0:T}] Shit's going down!\n", DateTime.Now);
+
+                    var chain = mDependencyGraph.GetPath(mBranchComponents[mBackupBranch], mBranchComponents[mActiveBranch]).ToList();
+                    if (chain.Count > 0)
+                    {
+                        // Add RestoreDatabaseComponents
+                        var toRun = mDatabases.Select(x => new RestoreDatabaseComponent(x)).Union(chain);
+
+                        var s = new ComponentRunState(mDryRun);
+                        foreach (var component in toRun)
+                        {
+                            foreach (var logLine in component.Run(s))
+                            {
+                                Console.WriteLine("[{0:T}] {1}", DateTime.Now, logLine);
+                                if (s.Error)
+                                {
+                                    Console.WriteLine("[{0:T}] Blocking Errors Detected ):", DateTime.Now);
+                                    return;
+                                }
+                            }
+
+                            //mDependencyGraph.Validate(component);
+                        }
+                    }
+
+                    Console.WriteLine("\n[{0:T}] Success!\n", DateTime.Now);
+                }
+                finally
+                {
+                    mPendingChanges = false;
+                }
             }
         }
 
@@ -163,6 +181,12 @@ namespace DBBranchManager
         {
             lock (this)
             {
+                if (mPaused)
+                {
+                    mPendingChanges = true;
+                    return;
+                }
+
                 Console.WriteLine("[{0:T}] Changes detected... [{1}]", DateTime.Now, args.Reason);
 
                 foreach (var invalidatedComponent in args.InvalidatedComponents)
@@ -176,7 +200,61 @@ namespace DBBranchManager
 
         public void Run()
         {
+            Task.Run(() => GetConsoleInput());
             System.Windows.Forms.Application.Run();
+        }
+
+        private void GetConsoleInput()
+        {
+            var line = Console.ReadLine();
+            OnConsoleInput(line);
+            Task.Run(() => GetConsoleInput());
+        }
+
+        private void OnConsoleInput(string line)
+        {
+            var argv = line.Trim().Split(new[] { " " }, StringSplitOptions.RemoveEmptyEntries);
+
+            if (argv.Length == 0)
+                return;
+
+            var cmd = argv[0];
+            switch (cmd.ToLower())
+            {
+                case "pause":
+                case "p":
+                    Pause();
+                    break;
+
+                case "resume":
+                case "r":
+                    Resume();
+                    break;
+            }
+        }
+
+        private void Pause()
+        {
+            lock (this)
+            {
+                Console.WriteLine("[{0:T}] Pausing...", DateTime.Now);
+                mPaused = true;
+            }
+        }
+
+        private void Resume()
+        {
+            lock (this)
+            {
+                Console.WriteLine("[{0:T}] Resuming...", DateTime.Now);
+                mPaused = false;
+
+                if (mPendingChanges)
+                {
+                    Console.WriteLine("[{0:T}] Pending changes detected...", DateTime.Now);
+                    mDelayTimer.Change(mTimerDelay, Timeout.Infinite);
+                }
+            }
         }
     }
 }
