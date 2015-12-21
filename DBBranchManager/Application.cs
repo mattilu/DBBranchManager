@@ -130,7 +130,7 @@ namespace DBBranchManager
             lock (this)
             {
                 // Delay elapsed without modifications. DO IT!
-                Console.WriteLine("Shit's going down!\n");
+                Console.WriteLine("[{0:T}] Shit's going down!\n", DateTime.Now);
 
                 var chain = mDependencyGraph.GetPath(mBranchComponents[mBackupBranch], mBranchComponents[mActiveBranch]).ToList();
                 if (chain.Count > 0)
@@ -143,10 +143,10 @@ namespace DBBranchManager
                     {
                         foreach (var logLine in component.Run(s))
                         {
-                            Console.WriteLine(logLine);
+                            Console.WriteLine("[{0:T}] {1}", DateTime.Now, logLine);
                             if (s.Error)
                             {
-                                Console.WriteLine("Blocking Errors Detected ):");
+                                Console.WriteLine("[{0:T}] Blocking Errors Detected ):", DateTime.Now);
                                 return;
                             }
                         }
@@ -155,7 +155,7 @@ namespace DBBranchManager
                     }
                 }
 
-                Console.WriteLine("\nSuccess!\n");
+                Console.WriteLine("\n[{0:T}] Success!\n", DateTime.Now);
             }
         }
 
@@ -163,7 +163,7 @@ namespace DBBranchManager
         {
             lock (this)
             {
-                Console.WriteLine("Changes detected...");
+                Console.WriteLine("[{0:T}] Changes detected... [{1}]", DateTime.Now, args.Reason);
 
                 foreach (var invalidatedComponent in args.InvalidatedComponents)
                 {

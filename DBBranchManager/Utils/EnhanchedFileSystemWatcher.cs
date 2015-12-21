@@ -10,11 +10,13 @@ namespace DBBranchManager.Utils
 
     public class EnhanchedFileSystemWatcherChangeEventArgs : EventArgs
     {
-        public EnhanchedFileSystemWatcherChangeEventArgs(IEnumerable<object> affectedItems)
+        public EnhanchedFileSystemWatcherChangeEventArgs(string path, IEnumerable<object> affectedItems)
         {
+            Path = path;
             AffectedItems = affectedItems.ToList();
         }
 
+        public string Path { get; private set; }
         public IReadOnlyCollection<object> AffectedItems { get; private set; }
     }
 
@@ -170,7 +172,7 @@ namespace DBBranchManager.Utils
                     .ToList();
                 if (items.Any())
                 {
-                    evt(this, new EnhanchedFileSystemWatcherChangeEventArgs(items));
+                    evt(this, new EnhanchedFileSystemWatcherChangeEventArgs(fullPath, items));
                 }
             }
         }

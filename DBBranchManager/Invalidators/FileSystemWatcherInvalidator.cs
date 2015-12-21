@@ -29,14 +29,14 @@ namespace DBBranchManager.Invalidators
 
         private void OnChanged(object sender, EnhanchedFileSystemWatcherChangeEventArgs e)
         {
-            OnInvalidate(e.AffectedItems.Cast<IComponent>().ToList());
+            OnInvalidate(e.Path, e.AffectedItems.Cast<IComponent>().ToList());
         }
 
-        private void OnInvalidate(List<IComponent> components)
+        private void OnInvalidate(string path, List<IComponent> components)
         {
             var evt = Invalidated;
             if (evt != null)
-                evt(this, new InvalidatedEventsArgs(new List<IComponent>(components)));
+                evt(this, new InvalidatedEventsArgs(path, new List<IComponent>(components)));
         }
     }
 }

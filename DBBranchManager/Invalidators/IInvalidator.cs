@@ -8,10 +8,13 @@ namespace DBBranchManager.Invalidators
 
     internal class InvalidatedEventsArgs : EventArgs
     {
-        public InvalidatedEventsArgs(IReadOnlyCollection<IComponent> invalidatedComponents)
+        public InvalidatedEventsArgs(string reason, IReadOnlyCollection<IComponent> invalidatedComponents)
         {
+            Reason = reason;
             InvalidatedComponents = invalidatedComponents;
         }
+
+        public object Reason { get; private set; }
 
         public IReadOnlyCollection<IComponent> InvalidatedComponents { get; private set; }
     }
