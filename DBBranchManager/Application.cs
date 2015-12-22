@@ -2,6 +2,7 @@
 using DBBranchManager.Config;
 using DBBranchManager.Dependencies;
 using DBBranchManager.Invalidators;
+using DBBranchManager.Utils;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -138,46 +139,59 @@ namespace DBBranchManager
         {
             lock (this)
             {
-                try
+                RunOnMainThread(FireWork);
+            }
+        }
+
+        private static void RunOnMainThread(Action func)
+        {
+            Program.Post(func);
+        }
+
+        private void FireWork()
+        {
+            try
+            {
+                if (mPaused)
                 {
-                    if (mPaused)
-                    {
-                        return;
-                    }
-
-                    // Delay elapsed without modifications. DO IT!
-                    Console.WriteLine("[{0:T}] Shit's going down!\n", DateTime.Now);
-                    Beep("start");
-
-                    var chain = mDependencyGraph.GetPath(mBranchComponents[mBackupBranch], mBranchComponents[mActiveBranch]).ToList();
-                    if (chain.Count > 0)
-                    {
-                        // Add RestoreDatabaseComponents
-                        var toRun = mDatabases.Select(x => new RestoreDatabaseComponent(x)).Union(chain);
-
-                        var s = new ComponentRunState(mDryRun);
-                        foreach (var component in toRun)
-                        {
-                            foreach (var logLine in component.Run(s))
-                            {
-                                Console.WriteLine("[{0:T}] {1}", DateTime.Now, logLine);
-                                if (s.Error)
-                                {
-                                    Console.WriteLine("[{0:T}] Blocking Errors Detected ):", DateTime.Now);
-                                    Beep("error");
-
-                                    return;
-                                }
-                            }
-
-                            //mDependencyGraph.Validate(component);
-                        }
-                    }
-
-                    Console.WriteLine("\n[{0:T}] Success!\n", DateTime.Now);
-                    Beep("success");
+                    return;
                 }
-                finally
+
+                // Delay elapsed without modifications. DO IT!
+                Console.WriteLine("[{0:T}] Shit's going down!\n", DateTime.Now);
+                Beep("start");
+
+                var chain = mDependencyGraph.GetPath(mBranchComponents[mBackupBranch], mBranchComponents[mActiveBranch]).ToList();
+                if (chain.Count > 0)
+                {
+                    // Add RestoreDatabaseComponents
+                    var toRun = mDatabases.Select(x => new RestoreDatabaseComponent(x)).Union(chain);
+
+                    var s = new ComponentRunState(mDryRun);
+                    foreach (var component in toRun)
+                    {
+                        foreach (var logLine in component.Run(s))
+                        {
+                            Console.WriteLine("[{0:T}] {1}", DateTime.Now, logLine);
+                            if (s.Error)
+                            {
+                                Console.WriteLine("[{0:T}] Blocking Errors Detected ):", DateTime.Now);
+                                Beep("error");
+
+                                return;
+                            }
+                        }
+
+                        //mDependencyGraph.Validate(component);
+                    }
+                }
+
+                Console.WriteLine("\n[{0:T}] Success!\n", DateTime.Now);
+                Beep("success");
+            }
+            finally
+            {
+                if (!mPaused)
                 {
                     mPendingChanges = false;
                 }
@@ -205,20 +219,23 @@ namespace DBBranchManager
             }
         }
 
-        public void Run()
+        public void Start()
         {
             BeginConsoleInput();
-            System.Windows.Forms.Application.Run();
         }
 
-        private void BeginConsoleInput()
+        private async Task<string> ReadLineAsync()
         {
-            Task.Run(() =>
+            return await Task.Run(() => Console.ReadLine());
+        }
+
+        private async void BeginConsoleInput()
+        {
+            while (true)
             {
-                var line = Console.ReadLine();
+                var line = await ReadLineAsync();
                 OnConsoleInput(line);
-                BeginConsoleInput();
-            });
+            }
         }
 
         private void OnConsoleInput(string line)
@@ -267,25 +284,12 @@ namespace DBBranchManager
             }
         }
 
-        private void Beep(int frequency, int duration, int times, float dutyTime)
-        {
-            var time = (float)duration / times;
-            var onTime = (int)(time * dutyTime);
-            var offTime = (int)(time - onTime);
-
-            while (times-- > 0)
-            {
-                Console.Beep(frequency, onTime);
-                Thread.Sleep(offTime);
-            }
-        }
-
         private void Beep(string reason)
         {
             BeepInfo beep;
             if (mConfiguration.Beeps.TryGetValue(reason, out beep))
             {
-                Beep(beep.Frequency, beep.Duration, beep.Times, beep.DutyTime);
+                Buzzer.Beep(beep.Frequency, beep.Duration, beep.Times, beep.DutyTime);
             }
         }
     }
