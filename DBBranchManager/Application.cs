@@ -207,15 +207,18 @@ namespace DBBranchManager
 
         public void Run()
         {
-            Task.Run(() => GetConsoleInput());
+            BeginConsoleInput();
             System.Windows.Forms.Application.Run();
         }
 
-        private void GetConsoleInput()
+        private void BeginConsoleInput()
         {
-            var line = Console.ReadLine();
-            OnConsoleInput(line);
-            Task.Run(() => GetConsoleInput());
+            Task.Run(() =>
+            {
+                var line = Console.ReadLine();
+                OnConsoleInput(line);
+                BeginConsoleInput();
+            });
         }
 
         private void OnConsoleInput(string line)
