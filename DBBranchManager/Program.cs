@@ -42,5 +42,10 @@ namespace DBBranchManager
         {
             mSyncContext.Post(state => func(), null);
         }
+
+        public static void Exit()
+        {
+            mSyncContext.Complete();
+        }
     }
 }

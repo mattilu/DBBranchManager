@@ -137,15 +137,20 @@ namespace DBBranchManager
 
         private void OnTimerTick(object state)
         {
-            lock (this)
-            {
-                RunOnMainThread(FireWork);
-            }
+            FireWorkOnMainThread();
         }
 
         private static void RunOnMainThread(Action func)
         {
             Program.Post(func);
+        }
+
+        private void FireWorkOnMainThread()
+        {
+            lock (this)
+            {
+                RunOnMainThread(FireWork);
+            }
         }
 
         private void FireWork()
@@ -256,6 +261,16 @@ namespace DBBranchManager
                 case "resume":
                 case "r":
                     Resume();
+                    break;
+
+                case "force":
+                case "f":
+                    FireWorkOnMainThread();
+                    break;
+
+                case "quit":
+                case "q":
+                    Program.Exit();
                     break;
             }
         }
