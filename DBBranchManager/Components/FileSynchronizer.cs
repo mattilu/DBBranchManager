@@ -49,7 +49,13 @@ namespace DBBranchManager.Components
                         yield return string.Format("Copying {0} -> {1}", fileName, mDestinationPath);
 
                         if (!runState.DryRun)
+                        {
+                            if (destFileInfo.Exists && (destFileInfo.Attributes & FileAttributes.ReadOnly) == FileAttributes.ReadOnly)
+                            {
+                                destFileInfo.Attributes &= ~FileAttributes.ReadOnly;
+                            }
                             fileInfo.CopyTo(destFile, true);
+                        }
                     }
                 }
             }
