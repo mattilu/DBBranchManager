@@ -76,6 +76,10 @@ namespace DBBranchManager
                     var target = mBranchComponents[branchInfo.Name];
                     fullGraph.AddDependency(source, target);
                 }
+                else
+                {
+                    fullGraph.AddNode(mBranchComponents[branchInfo.Name]);
+                }
             }
 
             return fullGraph;
