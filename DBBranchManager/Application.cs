@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -27,6 +28,7 @@ namespace DBBranchManager
         private readonly Timer mDelayTimer;
         private readonly int mTimerDelay;
         private readonly bool mDryRun;
+        private readonly string mEnvironment;
         private bool mPaused;
         private bool mPendingChanges;
 
@@ -53,6 +55,7 @@ namespace DBBranchManager
             mActiveBranch = config.ActiveBranch;
             mBackupBranch = config.BackupBranch;
             mDryRun = config.DryRun;
+            mEnvironment = config.Environment;
 
             mPaused = false;
             mPendingChanges = false;
@@ -141,7 +144,7 @@ namespace DBBranchManager
 
         private void OnTimerTick(object state)
         {
-            FireWorkOnMainThread();
+            FireWorkOnMainThread(mEnvironment);
         }
 
         private static void RunOnMainThread(Action func)
@@ -149,15 +152,15 @@ namespace DBBranchManager
             Program.Post(func);
         }
 
-        private void FireWorkOnMainThread()
+        private void FireWorkOnMainThread(string environment)
         {
             lock (this)
             {
-                RunOnMainThread(FireWork);
+                RunOnMainThread(() => FireWork(environment));
             }
         }
 
-        private void FireWork()
+        private void FireWork(string environment)
         {
             try
             {
@@ -176,7 +179,7 @@ namespace DBBranchManager
                     // Add RestoreDatabaseComponents
                     var toRun = mDatabases.Select(x => new RestoreDatabaseComponent(x)).Union(chain);
 
-                    var s = new ComponentRunState(mDryRun);
+                    var s = new ComponentRunState(mDryRun, environment);
                     foreach (var component in toRun)
                     {
                         foreach (var logLine in component.Run(s))
@@ -269,8 +272,11 @@ namespace DBBranchManager
 
                 case "force":
                 case "f":
-                    FireWorkOnMainThread();
-                    break;
+                    {
+                        var env = argv.Length > 1 ? argv[1] : mEnvironment;
+                        FireWorkOnMainThread(env);
+                        break;
+                    }
 
                 case "quit":
                 case "q":
@@ -280,8 +286,11 @@ namespace DBBranchManager
                 case "generate-scripts":
                 case "gs":
                 case "g":
-                    GenerateScripts();
-                    break;
+                    {
+                        var env = argv.Length > 1 ? argv[1] : mEnvironment;
+                        GenerateScripts(env);
+                        break;
+                    }
             }
         }
 
@@ -309,7 +318,7 @@ namespace DBBranchManager
             }
         }
 
-        private void GenerateScriptsRecursive(IDependencyGraph<IComponent> graph)
+        private void GenerateScriptsRecursive(IDependencyGraph<IComponent> graph, string environment)
         {
             var chain = graph.GetPath();
 
@@ -318,7 +327,7 @@ namespace DBBranchManager
                 var asSuperComponent = component as SuperComponent;
                 if (asSuperComponent != null)
                 {
-                    GenerateScriptsRecursive(asSuperComponent.Components);
+                    GenerateScriptsRecursive(asSuperComponent.Components, environment);
                     continue;
                 }
 
@@ -328,19 +337,25 @@ namespace DBBranchManager
                     var scriptFile = Path.Combine(asScriptsComponent.DeployPath, asScriptsComponent.ReleaseName + @".sql");
 
                     Console.WriteLine("[{0:T}] Generating {1}", DateTime.Now, scriptFile);
-                    File.WriteAllText(scriptFile, asScriptsComponent.GenerateScript());
+
+                    var sb = new StringBuilder();
+                    foreach (var log in asScriptsComponent.GenerateScript(environment, sb))
+                    {
+                        Console.WriteLine("    {0}", log);
+                    }
+                    File.WriteAllText(scriptFile, sb.ToString());
                 }
             }
         }
 
-        private void GenerateScripts()
+        private void GenerateScripts(string environment)
         {
             lock (this)
             {
                 var chain = mDependencyGraph.GetPath(mBranchComponents[mBackupBranch], mBranchComponents[mActiveBranch]).ToList();
                 foreach (var component in chain.OfType<SuperComponent>())
                 {
-                    GenerateScriptsRecursive(component.Components);
+                    GenerateScriptsRecursive(component.Components, environment);
                 }
             }
         }

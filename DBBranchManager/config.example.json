@@ -45,6 +45,7 @@
   "backupBranch": "Main",
   "executionDelay": 3000,
   "dryRun": false,
+  "environment": "dev",
   "beeps": {
     "start": {
       "frequency": 1000,

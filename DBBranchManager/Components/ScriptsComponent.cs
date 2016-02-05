@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -9,7 +10,7 @@ namespace DBBranchManager.Components
 {
     internal class ScriptsComponent : IComponent
     {
-        private static readonly Regex ScriptFileRegex = new Regex(@"^\d+\..*\.sql$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex ScriptFileRegex = new Regex(@"^\d+(?:-(?<env>[^.]+))?\..*\.sql$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         private readonly string mScriptsPath;
         private readonly string mDeployPath;
         private readonly string mReleaseName;
@@ -23,9 +24,8 @@ namespace DBBranchManager.Components
             mDatabaseConnection = databaseConnection;
         }
 
-        public string GenerateScript()
+        public IEnumerable<string> GenerateScript(string environment, StringBuilder sb)
         {
-            var sb = new StringBuilder();
             sb.AppendFormat(@"
 :on error exit
 :setvar path ""{0}""
@@ -44,18 +44,19 @@ TRUNCATE TABLE [Interdependencies].[TBC_CACHE_ITEM_DEPENDENCY]
 
             foreach (var file in FileUtils.EnumerateFiles(mScriptsPath, ScriptFileRegex.IsMatch))
             {
-                if (ScriptFileRegex.IsMatch(file))
+                var match = ScriptFileRegex.Match(file);
+                if (match.Success && (!match.Groups["env"].Success || match.Groups["env"].Value == environment))
                 {
                     sb.AppendFormat("\nPRINT 'BEGIN {0}'\nGO\n:r $(path)\\\"{0}\"\nGO\nPRINT 'END {0}'", file);
+                    yield return string.Format("Adding {0}", file);
                 }
                 else
                 {
-                    sb.AppendFormat("\nPRINT 'SKIPPING {0}'\nGO", file);
+                    yield return string.Format("Skipping {0}", file);
                 }
             }
 
             sb.Append("\nGO\n\n--ROLLBACK TRANSACTION\nPRINT 'Committing...'\nCOMMIT TRANSACTION");
-            return sb.ToString();
         }
 
         public IEnumerable<string> Run(ComponentRunState runState)
@@ -64,7 +65,10 @@ TRUNCATE TABLE [Interdependencies].[TBC_CACHE_ITEM_DEPENDENCY]
             {
                 yield return string.Format("Scripts: {0}", mScriptsPath);
 
-                var script = GenerateScript();
+                var sb = new StringBuilder();
+                GenerateScript(runState.Environment, sb).RunToEnd();
+
+                var script = sb.ToString();
                 yield return "Running script...";
 
                 string errors = null;

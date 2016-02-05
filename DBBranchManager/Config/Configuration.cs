@@ -15,6 +15,7 @@ namespace DBBranchManager.Config
         public string BackupBranch { get; set; }
         public int ExecutionDelay { get; set; }
         public bool DryRun { get; set; }
+        public string Environment { get; set; }
         public Dictionary<string, BeepInfo> Beeps { get; set; }
 
         public static Configuration LoadFromJson(string path)
@@ -53,6 +54,7 @@ namespace DBBranchManager.Config
                     BackupBranch = (string)jConfig["backupBranch"],
                     ExecutionDelay = (int?)jConfig["executionDelay"] ?? 3000,
                     DryRun = (bool)jConfig["dryRun"],
+                    Environment = (string)jConfig["environment"] ?? "dev",
                     Beeps = jConfig["beeps"].OfType<JProperty>().ToDictionary(x => x.Name, x => new BeepInfo(
                         (int?)x.Value["frequency"] ?? 800,
                         (int?)x.Value["length"] ?? 250,
