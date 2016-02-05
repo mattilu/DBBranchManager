@@ -24,7 +24,7 @@ namespace DBBranchManager.Components
             mDatabaseConnection = databaseConnection;
         }
 
-        public IEnumerable<string> GenerateScript(string environment, StringBuilder sb)
+        public IEnumerable<string> GenerateScript(string environment, StringBuilder sb, bool commit)
         {
             sb.AppendFormat(@"
 :on error exit
@@ -56,7 +56,16 @@ TRUNCATE TABLE [Interdependencies].[TBC_CACHE_ITEM_DEPENDENCY]
                 }
             }
 
-            sb.Append("\nGO\n\n--ROLLBACK TRANSACTION\nPRINT 'Committing...'\nCOMMIT TRANSACTION");
+            if (commit)
+            {
+                yield return "Adding Commit...";
+                sb.Append("\nGO\n\nPRINT 'Committing...'\n--ROLLBACK TRANSACTION\nCOMMIT TRANSACTION");
+            }
+            else
+            {
+                yield return "Adding Rollback...";
+                sb.Append("\nGO\n\nPRINT 'Rolling Back...'\nROLLBACK TRANSACTION\n--COMMIT TRANSACTION");
+            }
         }
 
         public IEnumerable<string> Run(ComponentRunState runState)
@@ -66,7 +75,7 @@ TRUNCATE TABLE [Interdependencies].[TBC_CACHE_ITEM_DEPENDENCY]
                 yield return string.Format("Scripts: {0}", mScriptsPath);
 
                 var sb = new StringBuilder();
-                GenerateScript(runState.Environment, sb).RunToEnd();
+                GenerateScript(runState.Environment, sb, true).RunToEnd();
 
                 var script = sb.ToString();
                 yield return "Running script...";
@@ -86,7 +95,6 @@ TRUNCATE TABLE [Interdependencies].[TBC_CACHE_ITEM_DEPENDENCY]
                 {
                     runState.Error = true;
                     yield return errors;
-                    yield break;
                 }
             }
         }

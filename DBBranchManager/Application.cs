@@ -339,7 +339,7 @@ namespace DBBranchManager
                     Console.WriteLine("[{0:T}] Generating {1}", DateTime.Now, scriptFile);
 
                     var sb = new StringBuilder();
-                    foreach (var log in asScriptsComponent.GenerateScript(environment, sb))
+                    foreach (var log in asScriptsComponent.GenerateScript(environment, sb, false))
                     {
                         Console.WriteLine("    {0}", log);
                     }
