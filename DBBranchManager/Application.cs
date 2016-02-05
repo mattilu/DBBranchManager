@@ -1,15 +1,16 @@
-﻿using DBBranchManager.Components;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
+using DBBranchManager.Components;
 using DBBranchManager.Config;
 using DBBranchManager.Dependencies;
 using DBBranchManager.Invalidators;
 using DBBranchManager.Utils;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace DBBranchManager
 {
@@ -27,6 +28,7 @@ namespace DBBranchManager
         private readonly Timer mDelayTimer;
         private readonly int mTimerDelay;
         private readonly bool mDryRun;
+        private readonly string mEnvironment;
         private bool mPaused;
         private bool mPendingChanges;
 
@@ -53,8 +55,9 @@ namespace DBBranchManager
             mActiveBranch = config.ActiveBranch;
             mBackupBranch = config.BackupBranch;
             mDryRun = config.DryRun;
+            mEnvironment = config.Environment;
 
-            mPaused = false;
+            mPaused = config.PauseAtStartup;
             mPendingChanges = false;
         }
 
@@ -128,7 +131,7 @@ namespace DBBranchManager
 
             var tplComponent = new TemplatesComponent(Path.Combine(releaseDir, "Templates"), deployPath);
             var reportsComponent = new ReportsComponent(Path.Combine(releaseDir, "Reports"), deployPath);
-            var scriptsComponent = new ScriptsComponent(Path.Combine(releaseDir, "Scripts"), dbConnectionInfo);
+            var scriptsComponent = new ScriptsComponent(Path.Combine(releaseDir, "Scripts"), deployPath, releaseName, dbConnectionInfo);
 
             graph.AddDependency(componentIn, tplComponent);
             graph.AddDependency(componentIn, reportsComponent);
@@ -141,7 +144,7 @@ namespace DBBranchManager
 
         private void OnTimerTick(object state)
         {
-            FireWorkOnMainThread();
+            FireWorkOnMainThread(mEnvironment, false);
         }
 
         private static void RunOnMainThread(Action func)
@@ -149,19 +152,19 @@ namespace DBBranchManager
             Program.Post(func);
         }
 
-        private void FireWorkOnMainThread()
+        private void FireWorkOnMainThread(string environment, bool force)
         {
             lock (this)
             {
-                RunOnMainThread(FireWork);
+                RunOnMainThread(() => FireWork(environment, force));
             }
         }
 
-        private void FireWork()
+        private void FireWork(string environment, bool force)
         {
             try
             {
-                if (mPaused)
+                if (mPaused && !force)
                 {
                     return;
                 }
@@ -176,7 +179,7 @@ namespace DBBranchManager
                     // Add RestoreDatabaseComponents
                     var toRun = mDatabases.Select(x => new RestoreDatabaseComponent(x)).Union(chain);
 
-                    var s = new ComponentRunState(mDryRun);
+                    var s = new ComponentRunState(mDryRun, environment);
                     foreach (var component in toRun)
                     {
                         foreach (var logLine in component.Run(s))
@@ -269,13 +272,25 @@ namespace DBBranchManager
 
                 case "force":
                 case "f":
-                    FireWorkOnMainThread();
+                {
+                    var env = argv.Length > 1 ? argv[1] : mEnvironment;
+                    FireWorkOnMainThread(env, true);
                     break;
+                }
 
                 case "quit":
                 case "q":
                     Program.Exit();
                     break;
+
+                case "generate-scripts":
+                case "gs":
+                case "g":
+                {
+                    var env = argv.Length > 1 ? argv[1] : mEnvironment;
+                    GenerateScripts(env);
+                    break;
+                }
             }
         }
 
@@ -299,6 +314,48 @@ namespace DBBranchManager
                 {
                     Console.WriteLine("[{0:T}] Pending changes detected...", DateTime.Now);
                     mDelayTimer.Change(mTimerDelay, Timeout.Infinite);
+                }
+            }
+        }
+
+        private void GenerateScriptsRecursive(IDependencyGraph<IComponent> graph, string environment)
+        {
+            var chain = graph.GetPath();
+
+            foreach (var component in chain)
+            {
+                var asSuperComponent = component as SuperComponent;
+                if (asSuperComponent != null)
+                {
+                    GenerateScriptsRecursive(asSuperComponent.Components, environment);
+                    continue;
+                }
+
+                var asScriptsComponent = component as ScriptsComponent;
+                if (asScriptsComponent != null)
+                {
+                    var scriptFile = Path.Combine(asScriptsComponent.DeployPath, asScriptsComponent.ReleaseName + @".sql");
+
+                    Console.WriteLine("[{0:T}] Generating {1}", DateTime.Now, scriptFile);
+
+                    var sb = new StringBuilder();
+                    foreach (var log in asScriptsComponent.GenerateScript(environment, sb))
+                    {
+                        Console.WriteLine("    {0}", log);
+                    }
+                    File.WriteAllText(scriptFile, sb.ToString());
+                }
+            }
+        }
+
+        private void GenerateScripts(string environment)
+        {
+            lock (this)
+            {
+                var chain = mDependencyGraph.GetPath(mBranchComponents[mBackupBranch], mBranchComponents[mActiveBranch]).ToList();
+                foreach (var component in chain.OfType<SuperComponent>())
+                {
+                    GenerateScriptsRecursive(component.Components, environment);
                 }
             }
         }

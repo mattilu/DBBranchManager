@@ -28,5 +28,10 @@ namespace DBBranchManager.Components
                 }
             }
         }
+
+        public IDependencyGraph<IComponent> Components
+        {
+            get { return mComponents; }
+        }
     }
 }

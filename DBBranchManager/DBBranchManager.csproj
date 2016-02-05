@@ -94,6 +94,7 @@
     <Compile Include="State.cs" />
     <Compile Include="Utils\Buzzer.cs" />
     <Compile Include="Utils\EnhanchedFileSystemWatcher.cs" />
+    <Compile Include="Utils\EnumerableExtensions.cs" />
     <Compile Include="Utils\FileUtils.cs" />
     <Compile Include="Utils\NaturalSortComparer.cs" />
     <Compile Include="Utils\ProcessUtils.cs" />

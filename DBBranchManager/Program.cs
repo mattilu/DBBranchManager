@@ -7,7 +7,7 @@ namespace DBBranchManager
 {
     public static class Program
     {
-        private static readonly SingleThreadSynchronizationContext mSyncContext = new SingleThreadSynchronizationContext();
+        private static readonly SingleThreadSynchronizationContext SyncContext = new SingleThreadSynchronizationContext();
 
         public static void Main(string[] args)
         {
@@ -31,21 +31,21 @@ namespace DBBranchManager
 
         private static void Run(Action func)
         {
-            SynchronizationContext.SetSynchronizationContext(mSyncContext);
+            SynchronizationContext.SetSynchronizationContext(SyncContext);
 
             Post(func);
 
-            mSyncContext.Run();
+            SyncContext.Run();
         }
 
         public static void Post(Action func)
         {
-            mSyncContext.Post(state => func(), null);
+            SyncContext.Post(state => func(), null);
         }
 
         public static void Exit()
         {
-            mSyncContext.Complete();
+            SyncContext.Complete();
         }
     }
 }
