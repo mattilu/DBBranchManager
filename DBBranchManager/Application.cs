@@ -1,15 +1,15 @@
-﻿using DBBranchManager.Components;
-using DBBranchManager.Config;
-using DBBranchManager.Dependencies;
-using DBBranchManager.Invalidators;
-using DBBranchManager.Utils;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using DBBranchManager.Components;
+using DBBranchManager.Config;
+using DBBranchManager.Dependencies;
+using DBBranchManager.Invalidators;
+using DBBranchManager.Utils;
 
 namespace DBBranchManager
 {
@@ -128,7 +128,7 @@ namespace DBBranchManager
 
             var tplComponent = new TemplatesComponent(Path.Combine(releaseDir, "Templates"), deployPath);
             var reportsComponent = new ReportsComponent(Path.Combine(releaseDir, "Reports"), deployPath);
-            var scriptsComponent = new ScriptsComponent(Path.Combine(releaseDir, "Scripts"), dbConnectionInfo);
+            var scriptsComponent = new ScriptsComponent(Path.Combine(releaseDir, "Scripts"), deployPath, releaseName, dbConnectionInfo);
 
             graph.AddDependency(componentIn, tplComponent);
             graph.AddDependency(componentIn, reportsComponent);
@@ -276,6 +276,12 @@ namespace DBBranchManager
                 case "q":
                     Program.Exit();
                     break;
+
+                case "generate-scripts":
+                case "gs":
+                case "g":
+                    GenerateScripts();
+                    break;
             }
         }
 
@@ -299,6 +305,42 @@ namespace DBBranchManager
                 {
                     Console.WriteLine("[{0:T}] Pending changes detected...", DateTime.Now);
                     mDelayTimer.Change(mTimerDelay, Timeout.Infinite);
+                }
+            }
+        }
+
+        private void GenerateScriptsRecursive(IDependencyGraph<IComponent> graph)
+        {
+            var chain = graph.GetPath();
+
+            foreach (var component in chain)
+            {
+                var asSuperComponent = component as SuperComponent;
+                if (asSuperComponent != null)
+                {
+                    GenerateScriptsRecursive(asSuperComponent.Components);
+                    continue;
+                }
+
+                var asScriptsComponent = component as ScriptsComponent;
+                if (asScriptsComponent != null)
+                {
+                    var scriptFile = Path.Combine(asScriptsComponent.DeployPath, asScriptsComponent.ReleaseName + @".sql");
+
+                    Console.WriteLine("[{0:T}] Generating {1}", DateTime.Now, scriptFile);
+                    File.WriteAllText(scriptFile, asScriptsComponent.GenerateScript());
+                }
+            }
+        }
+
+        private void GenerateScripts()
+        {
+            lock (this)
+            {
+                var chain = mDependencyGraph.GetPath(mBranchComponents[mBackupBranch], mBranchComponents[mActiveBranch]).ToList();
+                foreach (var component in chain.OfType<SuperComponent>())
+                {
+                    GenerateScriptsRecursive(component.Components);
                 }
             }
         }
