@@ -144,7 +144,7 @@ namespace DBBranchManager
 
         private void OnTimerTick(object state)
         {
-            FireWorkOnMainThread(mEnvironment);
+            FireWorkOnMainThread(mEnvironment, false);
         }
 
         private static void RunOnMainThread(Action func)
@@ -152,19 +152,19 @@ namespace DBBranchManager
             Program.Post(func);
         }
 
-        private void FireWorkOnMainThread(string environment)
+        private void FireWorkOnMainThread(string environment, bool force)
         {
             lock (this)
             {
-                RunOnMainThread(() => FireWork(environment));
+                RunOnMainThread(() => FireWork(environment, force));
             }
         }
 
-        private void FireWork(string environment)
+        private void FireWork(string environment, bool force)
         {
             try
             {
-                if (mPaused)
+                if (mPaused && !force)
                 {
                     return;
                 }
@@ -272,11 +272,11 @@ namespace DBBranchManager
 
                 case "force":
                 case "f":
-                    {
-                        var env = argv.Length > 1 ? argv[1] : mEnvironment;
-                        FireWorkOnMainThread(env);
-                        break;
-                    }
+                {
+                    var env = argv.Length > 1 ? argv[1] : mEnvironment;
+                    FireWorkOnMainThread(env, true);
+                    break;
+                }
 
                 case "quit":
                 case "q":
@@ -286,11 +286,11 @@ namespace DBBranchManager
                 case "generate-scripts":
                 case "gs":
                 case "g":
-                    {
-                        var env = argv.Length > 1 ? argv[1] : mEnvironment;
-                        GenerateScripts(env);
-                        break;
-                    }
+                {
+                    var env = argv.Length > 1 ? argv[1] : mEnvironment;
+                    GenerateScripts(env);
+                    break;
+                }
             }
         }
 
