@@ -57,7 +57,7 @@ namespace DBBranchManager
             mDryRun = config.DryRun;
             mEnvironment = config.Environment;
 
-            mPaused = false;
+            mPaused = config.PauseAtStartup;
             mPendingChanges = false;
         }
 

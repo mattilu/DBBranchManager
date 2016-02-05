@@ -46,6 +46,7 @@
   "executionDelay": 3000,
   "dryRun": false,
   "environment": "dev",
+  "pauseAtStartup": true,
   "beeps": {
     "start": {
       "frequency": 1000,
