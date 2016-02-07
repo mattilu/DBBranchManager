@@ -21,7 +21,7 @@ namespace DBBranchManager.Config
 
         public static Configuration LoadFromJson(string path)
         {
-            using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read))
+            using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             using (var reader = new StreamReader(fs))
             using (var jReader = new JsonTextReader(reader))
             {
