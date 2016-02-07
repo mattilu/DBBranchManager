@@ -1,6 +1,7 @@
 using DBBranchManager.Config;
 using DBBranchManager.Utils;
 using System;
+using System.Diagnostics;
 using System.Threading;
 
 namespace DBBranchManager
@@ -8,25 +9,48 @@ namespace DBBranchManager
     public static class Program
     {
         private static readonly SingleThreadSynchronizationContext SyncContext = new SingleThreadSynchronizationContext();
+        private const string ConfigFilePath = @"..\..\config.json";
 
         public static void Main(string[] args)
         {
-            try
+            bool restart;
+            do
             {
-                Run(() =>
+                restart = false;
+                var needReset = false;
+                try
                 {
-                    var config = Configuration.LoadFromJson(@"..\..\config.json");
-                    var app = new Application(config);
-                    app.Start();
-                });
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex);
-                Console.WriteLine("\nPress any key to restart.");
-                Console.ReadKey(true);
-                System.Windows.Forms.Application.Restart();
-            }
+                    var config = Configuration.LoadFromJson(ConfigFilePath);
+
+                    using (var watcher = new EnhanchedFileSystemWatcher())
+                    using (var app = new Application(config))
+                    {
+                        EnhanchedFileSystemWatcherChangeEventHandler handler = null;
+                        handler = (sender, eventArgs) =>
+                        {
+                            Post(() =>
+                            {
+                                Console.WriteLine("\nChanges detected in config file. Restarting...");
+                                restart = true;
+                                Reset();
+                            });
+                            watcher.Changed -= handler;
+                        };
+                        watcher.Changed += handler;
+                        watcher.AddWatch(ConfigFilePath, null);
+                        needReset = true;
+                        Run(app.Start);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex);
+                    Console.WriteLine("\nRestarting...");
+                    restart = true;
+                    if (needReset)
+                        Reset();
+                }
+            } while (restart);
         }
 
         private static void Run(Action func)
@@ -46,6 +70,11 @@ namespace DBBranchManager
         public static void Exit()
         {
             SyncContext.Complete();
+        }
+
+        private static void Reset()
+        {
+            SyncContext.Reset();
         }
     }
 }

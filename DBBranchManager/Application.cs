@@ -5,7 +5,6 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
-using System.Threading.Tasks;
 using DBBranchManager.Components;
 using DBBranchManager.Config;
 using DBBranchManager.Dependencies;
@@ -14,9 +13,10 @@ using DBBranchManager.Utils;
 
 namespace DBBranchManager
 {
-    internal class Application
+    internal class Application : IDisposable
     {
         private static readonly Regex ToDeployRegex = new Regex("^(?:to[ _]deploy).*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private readonly CancellationTokenSource mCancellationTokenSource = new CancellationTokenSource();
 
         private readonly Configuration mConfiguration;
         private readonly List<DatabaseInfo> mDatabases;
@@ -31,6 +31,7 @@ namespace DBBranchManager
         private readonly string mEnvironment;
         private bool mPaused;
         private bool mPendingChanges;
+        private bool mDisposed;
 
         public Application(Configuration config)
         {
@@ -233,20 +234,24 @@ namespace DBBranchManager
 
         public void Start()
         {
+            Console.WriteLine("Awaiting commands...");
             BeginConsoleInput();
-        }
-
-        private async Task<string> ReadLineAsync()
-        {
-            return await Task.Run(() => Console.ReadLine());
         }
 
         private async void BeginConsoleInput()
         {
-            while (true)
+            while (!mDisposed)
             {
-                var line = await ReadLineAsync();
-                OnConsoleInput(line);
+                try
+                {
+                    var line = await ConsoleUtils.ReadLineAsync(mCancellationTokenSource.Token);
+                    if (mDisposed) return;
+                    OnConsoleInput(line);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
             }
         }
 
@@ -291,6 +296,9 @@ namespace DBBranchManager
                     GenerateScripts(env);
                     break;
                 }
+
+                case "t":
+                    throw new Exception();
             }
         }
 
@@ -367,6 +375,32 @@ namespace DBBranchManager
             {
                 Buzzer.Beep(beep.Frequency, beep.Duration, beep.Times, beep.DutyTime);
             }
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (mDisposed)
+                return;
+
+            if (disposing)
+            {
+                mCancellationTokenSource.Cancel();
+                mCancellationTokenSource.Dispose();
+                foreach (var invalidator in mInvalidators)
+                {
+                    invalidator.Dispose();
+                }
+                mInvalidators.Clear();
+                mDelayTimer.Dispose();
+            }
+
+            mDisposed = true;
         }
     }
 }

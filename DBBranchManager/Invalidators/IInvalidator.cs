@@ -1,6 +1,6 @@
-﻿using DBBranchManager.Components;
-using System;
+﻿using System;
 using System.Collections.Generic;
+using DBBranchManager.Components;
 
 namespace DBBranchManager.Invalidators
 {
@@ -19,7 +19,7 @@ namespace DBBranchManager.Invalidators
         public IReadOnlyCollection<IComponent> InvalidatedComponents { get; private set; }
     }
 
-    internal interface IInvalidator
+    internal interface IInvalidator : IDisposable
     {
         event InvalidatedEventHandler Invalidated;
     }

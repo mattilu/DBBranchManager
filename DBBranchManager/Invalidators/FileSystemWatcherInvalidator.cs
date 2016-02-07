@@ -1,7 +1,8 @@
-﻿using DBBranchManager.Components;
-using DBBranchManager.Utils;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using DBBranchManager.Components;
+using DBBranchManager.Utils;
 
 namespace DBBranchManager.Invalidators
 {
@@ -37,6 +38,21 @@ namespace DBBranchManager.Invalidators
             var evt = Invalidated;
             if (evt != null)
                 evt(this, new InvalidatedEventsArgs(path, new List<IComponent>(components)));
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                mWatcher.Changed -= OnChanged;
+                mWatcher.Dispose();
+            }
         }
     }
 }
