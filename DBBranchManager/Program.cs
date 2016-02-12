@@ -1,8 +1,7 @@
+using System;
+using System.Threading;
 using DBBranchManager.Config;
 using DBBranchManager.Utils;
-using System;
-using System.Diagnostics;
-using System.Threading;
 
 namespace DBBranchManager
 {
@@ -17,7 +16,6 @@ namespace DBBranchManager
             do
             {
                 restart = false;
-                var needReset = false;
                 try
                 {
                     var config = Configuration.LoadFromJson(ConfigFilePath);
@@ -32,13 +30,11 @@ namespace DBBranchManager
                             {
                                 Console.WriteLine("\nChanges detected in config file. Restarting...");
                                 restart = true;
-                                Reset();
                             });
                             watcher.Changed -= handler;
                         };
                         watcher.Changed += handler;
                         watcher.AddWatch(ConfigFilePath, null);
-                        needReset = true;
                         Run(app.Start);
                     }
                 }
@@ -47,8 +43,6 @@ namespace DBBranchManager
                     Console.WriteLine(ex);
                     Console.WriteLine("\nRestarting...");
                     restart = true;
-                    if (needReset)
-                        Reset();
                 }
             } while (restart);
         }
@@ -70,11 +64,6 @@ namespace DBBranchManager
         public static void Exit()
         {
             SyncContext.Complete();
-        }
-
-        private static void Reset()
-        {
-            SyncContext.Reset();
         }
     }
 }

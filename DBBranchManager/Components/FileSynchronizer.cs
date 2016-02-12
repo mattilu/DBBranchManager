@@ -1,12 +1,13 @@
-using DBBranchManager.Utils;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text.RegularExpressions;
+using DBBranchManager.Constants;
+using DBBranchManager.Utils;
 
 namespace DBBranchManager.Components
 {
-    internal class FileSynchronizer : IComponent
+    internal class FileSynchronizer : ComponentBase
     {
         private readonly string mSourcePath;
         private readonly string mDestinationPath;
@@ -19,14 +20,15 @@ namespace DBBranchManager.Components
             mFilter = filter;
         }
 
-        public IEnumerable<string> Run(ComponentRunState runState)
+        [RunAction(ActionConstants.Deploy)]
+        private IEnumerable<string> DeployRun(string action, ComponentRunContext runContext)
         {
             if (Directory.Exists(mSourcePath))
             {
                 if (!Directory.Exists(mDestinationPath))
                 {
                     yield return string.Format("Creating {0}", mDestinationPath);
-                    if (!runState.DryRun)
+                    if (!runContext.DryRun)
                         Directory.CreateDirectory(mDestinationPath);
                 }
 
@@ -48,7 +50,7 @@ namespace DBBranchManager.Components
                     {
                         yield return string.Format("Copying {0} -> {1}", fileName, mDestinationPath);
 
-                        if (!runState.DryRun)
+                        if (!runContext.DryRun)
                         {
                             if (destFileInfo.Exists && (destFileInfo.Attributes & FileAttributes.ReadOnly) == FileAttributes.ReadOnly)
                             {

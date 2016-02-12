@@ -1,16 +1,17 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 using DBBranchManager.Config;
+using DBBranchManager.Constants;
 using DBBranchManager.Utils;
 
 namespace DBBranchManager.Components
 {
-    internal class ScriptsComponent : IComponent
+    internal class ScriptsComponent : ComponentBase
     {
         private static readonly Regex ScriptFileRegex = new Regex(@"^\d+(?:-(?<env>[^.]+))?\..*\.sql$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
         private readonly string mScriptsPath;
         private readonly string mDeployPath;
         private readonly string mReleaseName;
@@ -24,7 +25,56 @@ namespace DBBranchManager.Components
             mDatabaseConnection = databaseConnection;
         }
 
-        public IEnumerable<string> GenerateScript(string environment, StringBuilder sb, bool commit)
+        [RunAction(ActionConstants.Deploy)]
+        private IEnumerable<string> DeployRun(string action, ComponentRunContext runContext)
+        {
+            if (Directory.Exists(mScriptsPath))
+            {
+                yield return string.Format("Scripts: {0}", mScriptsPath);
+
+                var sb = new StringBuilder();
+                GenerateScript(runContext.Environment, sb, true).RunToEnd();
+
+                var script = sb.ToString();
+                yield return "Running script...";
+
+                runContext.IncreaseDepth();
+                using (var sqlcmdResult = SqlUtils.SqlCmdExec(mDatabaseConnection, script))
+                {
+                    foreach (var processOutputLine in sqlcmdResult.GetOutput())
+                    {
+                        if (processOutputLine.OutputType == ProcessOutputLine.OutputTypeEnum.StandardError)
+                            yield return processOutputLine.Line;
+                    }
+                    runContext.DecreaseDepth();
+
+                    if (sqlcmdResult.ExitCode != 0)
+                    {
+                        runContext.SetError();
+                    }
+                }
+            }
+        }
+
+        [RunAction(ActionConstants.GenerateScripts)]
+        private IEnumerable<string> GenerateScriptsRun(string action, ComponentRunContext context)
+        {
+            if (Directory.Exists(mScriptsPath))
+            {
+                var scriptFile = Path.Combine(mDeployPath, mReleaseName + @".sql");
+                yield return string.Format("Generating {0}", scriptFile);
+
+                var sb = new StringBuilder();
+                foreach (var log in GenerateScript(context.Environment, sb, false))
+                {
+                    yield return string.Format("  {0}", log);
+                }
+
+                File.WriteAllText(scriptFile, sb.ToString());
+            }
+        }
+
+        private IEnumerable<string> GenerateScript(string environment, StringBuilder sb, bool commit)
         {
             sb.AppendFormat(@"
 :on error exit
@@ -67,40 +117,5 @@ TRUNCATE TABLE [Interdependencies].[TBC_CACHE_ITEM_DEPENDENCY]
                 sb.Append("\nGO\n\nPRINT 'Rolling Back...'\nROLLBACK TRANSACTION\n--COMMIT TRANSACTION");
             }
         }
-
-        public IEnumerable<string> Run(ComponentRunState runState)
-        {
-            if (Directory.Exists(mScriptsPath))
-            {
-                yield return string.Format("Scripts: {0}", mScriptsPath);
-
-                var sb = new StringBuilder();
-                GenerateScript(runState.Environment, sb, true).RunToEnd();
-
-                var script = sb.ToString();
-                yield return "Running script...";
-
-                string errors = null;
-                try
-                {
-                    if (!runState.DryRun)
-                        SqlUtils.SqlCmdExec(mDatabaseConnection, script);
-                }
-                catch (SqlCmdFailedException ex)
-                {
-                    errors = ex.Messages;
-                }
-
-                if (errors != null)
-                {
-                    runState.Error = true;
-                    yield return errors;
-                }
-            }
-        }
-
-        public string DeployPath { get { return mDeployPath; } }
-
-        public string ReleaseName { get { return mReleaseName; } }
     }
 }

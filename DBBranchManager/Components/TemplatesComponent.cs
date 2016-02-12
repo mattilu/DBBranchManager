@@ -1,12 +1,14 @@
 ﻿using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
+using DBBranchManager.Constants;
 
 namespace DBBranchManager.Components
 {
-    internal class TemplatesComponent : IComponent
+    internal class TemplatesComponent : ComponentBase
     {
-        private static readonly Regex TemplateFileRegex = new Regex(@"^TPL_\d+.+\.xls[mx]?$");
+        private static readonly Regex TemplateFileRegex = new Regex(@"^TPL_\d+_.+\.xls[mx]?$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
         private readonly string mTemplatesPath;
         private readonly string mDeployPath;
 
@@ -16,17 +18,22 @@ namespace DBBranchManager.Components
             mDeployPath = deployPath;
         }
 
-        public IEnumerable<string> Run(ComponentRunState runState)
+        [RunAction(ActionConstants.Deploy)]
+        public IEnumerable<string> DeployRun(string action, ComponentRunContext runContext)
         {
             if (Directory.Exists(mTemplatesPath))
             {
                 yield return string.Format("Templates {0} -> {1}", mTemplatesPath, mDeployPath);
 
+                runContext.IncreaseDepth();
+
                 var synchronizer = new FileSynchronizer(mTemplatesPath, mDeployPath, TemplateFileRegex);
-                foreach (var log in synchronizer.Run(runState))
+                foreach (var log in synchronizer.Run(action, runContext))
                 {
                     yield return log;
                 }
+
+                runContext.DecreaseDepth();
             }
         }
     }

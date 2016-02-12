@@ -1,21 +1,44 @@
 ﻿using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text.RegularExpressions;
+using DBBranchManager.Config;
 
 namespace DBBranchManager.Components
 {
-    internal class BranchComponent : IComponent
+    internal class BranchComponent : AggregatorComponent
     {
-        private readonly string mBranchName;
-        private readonly string mState;
+        private static readonly Regex ToDeployRegex = new Regex(@"^(?:to[ _]deploy).*$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-        public BranchComponent(string branchName, string state)
+        private readonly string mName;
+        private readonly string mBasePath;
+        private readonly string mDeployPath;
+        private readonly DatabaseConnectionInfo mDbConnection;
+
+        public BranchComponent(string name, string basePath, string deployPath, DatabaseConnectionInfo dbConnection)
         {
-            mBranchName = branchName;
-            mState = state;
+            mName = name;
+            mBasePath = basePath;
+            mDeployPath = deployPath;
+            mDbConnection = dbConnection;
         }
 
-        public IEnumerable<string> Run(ComponentRunState runState)
+        protected override IEnumerable<IComponent> GetComponentsToRun(string action, ComponentRunContext runContext)
         {
-            yield return string.Format("Branch {0}: {1}", mBranchName, mState);
+            yield return new LogComponent(string.Format("Branch {0}: Begin", mName));
+
+            if (Directory.Exists(mBasePath))
+            {
+                var toDeployDirs = Directory.EnumerateDirectories(mBasePath)
+                    .Where(x => ToDeployRegex.IsMatch(Path.GetFileName(x)));
+
+                foreach (var toDeployDir in toDeployDirs)
+                {
+                    yield return new ReleaseComponent(toDeployDir, mDeployPath, mDbConnection);
+                }
+            }
+
+            yield return new LogComponent(string.Format("Branch {0}: End", mName));
         }
     }
 }

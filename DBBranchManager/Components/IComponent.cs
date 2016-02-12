@@ -2,21 +2,49 @@
 
 namespace DBBranchManager.Components
 {
-    internal class ComponentRunState
+    internal class ComponentRunContext
     {
-        public ComponentRunState(bool dryRun, string environment)
+        private bool mError;
+        private int mDepth;
+
+        public ComponentRunContext(bool dryRun, string environment)
         {
             DryRun = dryRun;
             Environment = environment;
+            mDepth = 0;
         }
 
         public bool DryRun { get; private set; }
         public string Environment { get; private set; }
-        public bool Error { get; set; }
+
+        public bool Error
+        {
+            get { return mError; }
+        }
+
+        public int Depth
+        {
+            get { return mDepth; }
+        }
+
+        public void SetError()
+        {
+            mError = true;
+        }
+
+        public void IncreaseDepth()
+        {
+            ++mDepth;
+        }
+
+        public void DecreaseDepth()
+        {
+            --mDepth;
+        }
     }
 
     internal interface IComponent
     {
-        IEnumerable<string> Run(ComponentRunState runState);
+        IEnumerable<string> Run(string action, ComponentRunContext runContext);
     }
 }
