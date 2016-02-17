@@ -1,9 +1,14 @@
-﻿using System.Collections.Concurrent;
+﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 
 namespace DBBranchManager.Utils
 {
+    internal class SynchronizationContextCompletedException : Exception
+    {
+    }
+
     internal class SingleThreadSynchronizationContext : SynchronizationContext
     {
         private readonly BlockingCollection<KeyValuePair<SendOrPostCallback, object>> mQueue;
@@ -15,6 +20,9 @@ namespace DBBranchManager.Utils
 
         public override void Post(SendOrPostCallback d, object state)
         {
+            if (mQueue.IsAddingCompleted)
+                throw new SynchronizationContextCompletedException();
+
             mQueue.Add(new KeyValuePair<SendOrPostCallback, object>(d, state));
         }
 

@@ -12,31 +12,31 @@ namespace DBBranchManager
 
         public static void Main(string[] args)
         {
-            bool restart;
+            var restart = false;
+
+            Application app = null;
+            var watcher = new EnhanchedFileSystemWatcher();
+            watcher.Changed += (sender, eventArgs) =>
+            {
+                Post(() =>
+                {
+                    Console.WriteLine("\nChanges detected in config file. Restarting...");
+                    restart = true;
+                    StartApp(ref app);
+                });
+            };
+
+            watcher.AddWatch(ConfigFilePath, null);
+
             do
             {
                 restart = false;
                 try
                 {
-                    var config = Configuration.LoadFromJson(ConfigFilePath);
-
-                    using (var watcher = new EnhanchedFileSystemWatcher())
-                    using (var app = new Application(config))
-                    {
-                        EnhanchedFileSystemWatcherChangeEventHandler handler = null;
-                        handler = (sender, eventArgs) =>
-                        {
-                            Post(() =>
-                            {
-                                Console.WriteLine("\nChanges detected in config file. Restarting...");
-                                restart = true;
-                            });
-                            watcher.Changed -= handler;
-                        };
-                        watcher.Changed += handler;
-                        watcher.AddWatch(ConfigFilePath, null);
-                        Run(app.Start);
-                    }
+                    Run(() => StartApp(ref app));
+                }
+                catch (SynchronizationContextCompletedException)
+                {
                 }
                 catch (Exception ex)
                 {
@@ -45,6 +45,16 @@ namespace DBBranchManager
                     restart = true;
                 }
             } while (restart);
+        }
+
+        private static void StartApp(ref Application curApp)
+        {
+            if (curApp != null)
+                curApp.Dispose();
+
+            var config = Configuration.LoadFromJson(ConfigFilePath);
+            curApp = new Application(config);
+            curApp.Start();
         }
 
         private static void Run(Action func)
