@@ -38,19 +38,22 @@ namespace DBBranchManager.Components
                 var script = sb.ToString();
                 yield return "Running script...";
 
-                runContext.IncreaseDepth();
-                using (var sqlcmdResult = SqlUtils.SqlCmdExec(mDatabaseConnection, script))
+                if (!runContext.DryRun)
                 {
-                    foreach (var processOutputLine in sqlcmdResult.GetOutput())
+                    using (var sqlcmdResult = SqlUtils.SqlCmdExec(mDatabaseConnection, script))
                     {
-                        if (processOutputLine.OutputType == ProcessOutputLine.OutputTypeEnum.StandardError)
-                            yield return processOutputLine.Line;
-                    }
-                    runContext.DecreaseDepth();
+                        runContext.IncreaseDepth();
+                        foreach (var processOutputLine in sqlcmdResult.GetOutput())
+                        {
+                            if (processOutputLine.OutputType == ProcessOutputLine.OutputTypeEnum.StandardError)
+                                yield return processOutputLine.Line;
+                        }
+                        runContext.DecreaseDepth();
 
-                    if (sqlcmdResult.ExitCode != 0)
-                    {
-                        runContext.SetError();
+                        if (sqlcmdResult.ExitCode != 0)
+                        {
+                            runContext.SetError();
+                        }
                     }
                 }
             }
@@ -70,7 +73,10 @@ namespace DBBranchManager.Components
                     yield return string.Format("  {0}", log);
                 }
 
-                File.WriteAllText(scriptFile, sb.ToString());
+                if (!context.DryRun)
+                {
+                    File.WriteAllText(scriptFile, sb.ToString());
+                }
             }
         }
 
