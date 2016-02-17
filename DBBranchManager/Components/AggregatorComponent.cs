@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using DBBranchManager.Utils;
 
 namespace DBBranchManager.Components
@@ -8,7 +7,7 @@ namespace DBBranchManager.Components
     {
         public IEnumerable<string> Run(string action, ComponentRunContext runContext)
         {
-            using (new DepthScope(runContext))
+            using (runContext.DepthScope())
             {
                 foreach (var log in GetComponentsToRun(action, runContext).Run(action, runContext))
                 {
@@ -18,22 +17,5 @@ namespace DBBranchManager.Components
         }
 
         protected abstract IEnumerable<IComponent> GetComponentsToRun(string action, ComponentRunContext runContext);
-
-
-        private class DepthScope : IDisposable
-        {
-            private readonly ComponentRunContext mRunContext;
-
-            public DepthScope(ComponentRunContext runContext)
-            {
-                mRunContext = runContext;
-                runContext.IncreaseDepth();
-            }
-
-            public void Dispose()
-            {
-                mRunContext.DecreaseDepth();
-            }
-        }
     }
 }

@@ -41,14 +41,13 @@ namespace DBBranchManager.Components
                 if (!runContext.DryRun)
                 {
                     using (var sqlcmdResult = SqlUtils.SqlCmdExec(mDatabaseConnection, script))
+                    using (runContext.DepthScope())
                     {
-                        runContext.IncreaseDepth();
                         foreach (var processOutputLine in sqlcmdResult.GetOutput())
                         {
                             if (processOutputLine.OutputType == ProcessOutputLine.OutputTypeEnum.StandardError)
                                 yield return processOutputLine.Line;
                         }
-                        runContext.DecreaseDepth();
 
                         if (sqlcmdResult.ExitCode != 0)
                         {
@@ -60,7 +59,7 @@ namespace DBBranchManager.Components
         }
 
         [RunAction(ActionConstants.GenerateScripts)]
-        private IEnumerable<string> GenerateScriptsRun(string action, ComponentRunContext context)
+        private IEnumerable<string> GenerateScriptsRun(string action, ComponentRunContext runContext)
         {
             if (Directory.Exists(mScriptsPath))
             {
@@ -68,12 +67,15 @@ namespace DBBranchManager.Components
                 yield return string.Format("Generating {0}", scriptFile);
 
                 var sb = new StringBuilder();
-                foreach (var log in GenerateScript(context.Environment, sb, false))
+                using (runContext.DepthScope())
                 {
-                    yield return string.Format("  {0}", log);
+                    foreach (var log in GenerateScript(runContext.Environment, sb, false))
+                    {
+                        yield return log;
+                    }
                 }
 
-                if (!context.DryRun)
+                if (!runContext.DryRun)
                 {
                     File.WriteAllText(scriptFile, sb.ToString());
                 }

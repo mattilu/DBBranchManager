@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using DBBranchManager.Components;
 
 namespace DBBranchManager.Utils
@@ -16,6 +17,27 @@ namespace DBBranchManager.Utils
                     if (runContext.Error)
                         yield break;
                 }
+            }
+        }
+
+        public static IDisposable DepthScope(this ComponentRunContext runContext)
+        {
+            return new DepthScopeImpl(runContext);
+        }
+
+        private class DepthScopeImpl : IDisposable
+        {
+            private readonly ComponentRunContext mRunContext;
+
+            public DepthScopeImpl(ComponentRunContext runContext)
+            {
+                mRunContext = runContext;
+                runContext.IncreaseDepth();
+            }
+
+            public void Dispose()
+            {
+                mRunContext.DecreaseDepth();
             }
         }
     }

@@ -2,6 +2,7 @@
 using System.IO;
 using System.Text.RegularExpressions;
 using DBBranchManager.Constants;
+using DBBranchManager.Utils;
 
 namespace DBBranchManager.Components
 {
@@ -25,15 +26,15 @@ namespace DBBranchManager.Components
             {
                 yield return string.Format("Templates {0} -> {1}", mTemplatesPath, mDeployPath);
 
-                runContext.IncreaseDepth();
 
-                var synchronizer = new FileSynchronizer(mTemplatesPath, mDeployPath, TemplateFileRegex);
-                foreach (var log in synchronizer.Run(action, runContext))
+                using (runContext.DepthScope())
                 {
-                    yield return log;
+                    var synchronizer = new FileSynchronizer(mTemplatesPath, mDeployPath, TemplateFileRegex);
+                    foreach (var log in synchronizer.Run(action, runContext))
+                    {
+                        yield return log;
+                    }
                 }
-
-                runContext.DecreaseDepth();
             }
         }
     }
