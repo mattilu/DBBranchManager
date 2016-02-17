@@ -42,6 +42,7 @@
     }
   },
   "releasePackagesPath": "E:\\Packages\\",
+  "scriptsPath":  "E:\\ScriptsSII\\",
   "activeBranch": "5.9.1",
   "backupBranch": "Main",
   "executionDelay": 3000,

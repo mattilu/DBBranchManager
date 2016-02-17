@@ -10,30 +10,26 @@ namespace DBBranchManager.Components
     {
         private static readonly Regex ToDeployRegex = new Regex(@"^(?:to[ _]deploy).*$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-        private readonly string mName;
-        private readonly string mBasePath;
-        private readonly string mDeployPath;
+        private readonly BranchInfo mBranchInfo;
         private readonly DatabaseConnectionInfo mDbConnection;
 
-        public BranchComponent(string name, string basePath, string deployPath, DatabaseConnectionInfo dbConnection) :
-            base(string.Format("Branch {0}", name))
+        public BranchComponent(BranchInfo branchInfo, DatabaseConnectionInfo dbConnection) :
+            base(string.Format("Branch {0}", branchInfo.Name))
         {
-            mName = name;
-            mBasePath = basePath;
-            mDeployPath = deployPath;
+            mBranchInfo = branchInfo;
             mDbConnection = dbConnection;
         }
 
         protected override IEnumerable<IComponent> GetComponentsToRun(string action, ComponentRunContext runContext)
         {
-            if (Directory.Exists(mBasePath))
+            if (Directory.Exists(mBranchInfo.BasePath))
             {
-                var toDeployDirs = Directory.EnumerateDirectories(mBasePath)
+                var toDeployDirs = Directory.EnumerateDirectories(mBranchInfo.BasePath)
                     .Where(x => ToDeployRegex.IsMatch(Path.GetFileName(x)));
 
                 foreach (var toDeployDir in toDeployDirs)
                 {
-                    yield return new ReleaseComponent(toDeployDir, mDeployPath, mDbConnection);
+                    yield return new ReleaseComponent(mBranchInfo, toDeployDir, mDbConnection);
                 }
             }
         }

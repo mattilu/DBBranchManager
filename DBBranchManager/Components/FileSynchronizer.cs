@@ -2,12 +2,11 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text.RegularExpressions;
-using DBBranchManager.Constants;
 using DBBranchManager.Utils;
 
 namespace DBBranchManager.Components
 {
-    internal class FileSynchronizer : ComponentBase
+    internal class FileSynchronizer : IComponent
     {
         private readonly string mSourcePath;
         private readonly string mDestinationPath;
@@ -20,8 +19,7 @@ namespace DBBranchManager.Components
             mFilter = filter;
         }
 
-        [RunAction(ActionConstants.Deploy)]
-        private IEnumerable<string> DeployRun(string action, ComponentRunContext runContext)
+        public IEnumerable<string> Run(string action, ComponentRunContext runContext)
         {
             if (Directory.Exists(mSourcePath))
             {

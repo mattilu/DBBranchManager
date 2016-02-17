@@ -15,7 +15,7 @@ namespace DBBranchManager.Components
         }
 
         [RunAction(ActionConstants.Deploy)]
-        public IEnumerable<string> DeployRun(string action, ComponentRunContext runContext)
+        private IEnumerable<string> DeployRun(string action, ComponentRunContext runContext)
         {
             var script = string.Format(@"
 USE [master]

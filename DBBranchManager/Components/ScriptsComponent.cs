@@ -12,17 +12,16 @@ namespace DBBranchManager.Components
     {
         private static readonly Regex ScriptFileRegex = new Regex(@"^\d+(?:-(?<env>[^.]+))?\..*\.sql$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
+        private readonly ReleaseInfo mReleaseInfo;
         private readonly string mScriptsPath;
-        private readonly string mDeployPath;
-        private readonly string mReleaseName;
         private readonly DatabaseConnectionInfo mDatabaseConnection;
 
-        public ScriptsComponent(string scriptsPath, string deployPath, string releaseName, DatabaseConnectionInfo databaseConnection)
+
+        public ScriptsComponent(ReleaseInfo releaseInfo, DatabaseConnectionInfo dbConnection)
         {
-            mScriptsPath = scriptsPath;
-            mDeployPath = deployPath;
-            mReleaseName = releaseName;
-            mDatabaseConnection = databaseConnection;
+            mReleaseInfo = releaseInfo;
+            mScriptsPath = Path.Combine(releaseInfo.Path, "Scripts");
+            mDatabaseConnection = dbConnection;
         }
 
         [RunAction(ActionConstants.Deploy)]
@@ -63,7 +62,14 @@ namespace DBBranchManager.Components
         {
             if (Directory.Exists(mScriptsPath))
             {
-                var scriptFile = Path.Combine(mDeployPath, mReleaseName + @".sql");
+                if (!Directory.Exists(runContext.Config.ScriptsPath))
+                {
+                    yield return string.Format("Creating directory {0}", runContext.Config.ScriptsPath);
+                    if (!runContext.DryRun)
+                        Directory.CreateDirectory(runContext.Config.ScriptsPath);
+                }
+
+                var scriptFile = Path.Combine(runContext.Config.ScriptsPath, mReleaseInfo.Branch.Name + "$" + mReleaseInfo.Name + @".sql");
                 yield return string.Format("Generating {0}", scriptFile);
 
                 var sb = new StringBuilder();
@@ -85,7 +91,31 @@ namespace DBBranchManager.Components
         [RunAction(ActionConstants.MakeReleasePackage)]
         private IEnumerable<string> MakeReleasePackageRun(string action, ComponentRunContext runContext)
         {
-            yield break;
+            if (Directory.Exists(mScriptsPath))
+            {
+                var packageDir = runContext.Config.GetPackageDirectory(mReleaseInfo, "Scripts");
+                yield return string.Format("Scripts {0} -> {1}", mScriptsPath, packageDir);
+
+                using (runContext.DepthScope())
+                {
+                    var synchronizer = new FileSynchronizer(mScriptsPath, packageDir, ScriptFileRegex);
+                    foreach (var log in synchronizer.Run(action, runContext))
+                    {
+                        yield return log;
+                    }
+                }
+
+                var scriptName = mReleaseInfo.Name + @".sql";
+                yield return string.Format("Generating script {0}", scriptName);
+
+                var sb = new StringBuilder();
+                GenerateScript(runContext.Environment, sb, false, packageDir).RunToEnd();
+
+                if (!runContext.DryRun)
+                {
+                    File.WriteAllText(runContext.Config.GetPackageDirectory(mReleaseInfo.Branch, scriptName), sb.ToString());
+                }
+            }
         }
 
         private IEnumerable<string> GenerateScript(string environment, StringBuilder sb, bool commit, object scriptsPath)

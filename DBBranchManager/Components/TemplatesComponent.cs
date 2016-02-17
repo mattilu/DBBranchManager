@@ -10,26 +10,44 @@ namespace DBBranchManager.Components
     {
         private static readonly Regex TemplateFileRegex = new Regex(@"^TPL_\d+_.+\.xls[mx]?$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
+        private readonly ReleaseInfo mReleaseInfo;
         private readonly string mTemplatesPath;
-        private readonly string mDeployPath;
 
-        public TemplatesComponent(string templatesPath, string deployPath)
+        public TemplatesComponent(ReleaseInfo releaseInfo)
         {
-            mTemplatesPath = templatesPath;
-            mDeployPath = deployPath;
+            mReleaseInfo = releaseInfo;
+            mTemplatesPath = Path.Combine(releaseInfo.Path, "Templates");
         }
 
         [RunAction(ActionConstants.Deploy)]
-        public IEnumerable<string> DeployRun(string action, ComponentRunContext runContext)
+        private IEnumerable<string> DeployRun(string action, ComponentRunContext runContext)
         {
             if (Directory.Exists(mTemplatesPath))
             {
-                yield return string.Format("Templates {0} -> {1}", mTemplatesPath, mDeployPath);
-
+                yield return string.Format("Templates {0} -> {1}", mTemplatesPath, mReleaseInfo.Branch.DeployPath);
 
                 using (runContext.DepthScope())
                 {
-                    var synchronizer = new FileSynchronizer(mTemplatesPath, mDeployPath, TemplateFileRegex);
+                    var synchronizer = new FileSynchronizer(mTemplatesPath, mReleaseInfo.Branch.DeployPath, TemplateFileRegex);
+                    foreach (var log in synchronizer.Run(action, runContext))
+                    {
+                        yield return log;
+                    }
+                }
+            }
+        }
+
+        [RunAction(ActionConstants.MakeReleasePackage)]
+        private IEnumerable<string> MakeReleasePackageRun(string action, ComponentRunContext runContext)
+        {
+            if (Directory.Exists(mTemplatesPath))
+            {
+                var packageDir = runContext.Config.GetPackageDirectory(mReleaseInfo, "Reports+Templates");
+                yield return string.Format("Templates {0} -> {1}", mTemplatesPath, packageDir);
+
+                using (runContext.DepthScope())
+                {
+                    var synchronizer = new FileSynchronizer(mTemplatesPath, packageDir, TemplateFileRegex);
                     foreach (var log in synchronizer.Run(action, runContext))
                     {
                         yield return log;

@@ -31,7 +31,7 @@ namespace DBBranchManager.Components
 
             foreach (var branchInfo in mBranchGraph.GetPath(mBackupBranch, mActiveBranch))
             {
-                yield return new BranchComponent(branchInfo.Name, branchInfo.BasePath, branchInfo.DeployPath, mDatabasesInfos[0].Connection);
+                yield return new BranchComponent(branchInfo, mDatabasesInfos[0].Connection);
             }
         }
 

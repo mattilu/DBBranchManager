@@ -12,6 +12,7 @@ namespace DBBranchManager.Config
         public List<DatabaseInfo> Databases { get; set; }
         public List<BranchInfo> Branches { get; set; }
         public string ReleasePackagesPath { get; set; }
+        public string ScriptsPath { get; set; }
         public string ActiveBranch { get; set; }
         public string BackupBranch { get; set; }
         public int ExecutionDelay { get; set; }
@@ -52,6 +53,7 @@ namespace DBBranchManager.Config
                         DeployPath = (string)x.Value["deployPath"]
                     }).ToList(),
                     ReleasePackagesPath = (string)jConfig["releasePackagesPath"],
+                    ScriptsPath = (string)jConfig["scriptsPath"] ?? (string)jConfig["releasePackagesPath"],
                     ActiveBranch = (string)jConfig["activeBranch"],
                     BackupBranch = (string)jConfig["backupBranch"],
                     ExecutionDelay = (int?)jConfig["executionDelay"] ?? 3000,
