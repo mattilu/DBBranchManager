@@ -41,6 +41,7 @@
       "deployPath": "E:\\ScriptsSII\\6.1.0"
     }
   },
+  "releasePackagesPath": "E:\\Packages\\",
   "activeBranch": "5.9.1",
   "backupBranch": "Main",
   "executionDelay": 3000,

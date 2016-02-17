@@ -91,12 +91,20 @@ namespace DBBranchManager
                     Program.Exit();
                     break;
 
-                case "generate-scripts":
+                case ActionConstants.GenerateScripts:
                 case "gs":
                 case "g":
                 {
                     var env = argv.Length > 1 ? argv[1] : mConfiguration.Environment;
-                    RunGenerateScripts(env);
+                    RunAction(ActionConstants.GenerateScripts, env);
+                    break;
+                }
+
+                case ActionConstants.MakeReleasePackage:
+                case "rp":
+                {
+                    var env = argv.Length > 1 ? argv[1] : mConfiguration.Environment;
+                    RunAction(ActionConstants.MakeReleasePackage, env);
                     break;
                 }
 
@@ -112,7 +120,7 @@ namespace DBBranchManager
                 Console.WriteLine("[{0:T}] Shit's going down!\n", DateTime.Now);
                 Beep("start");
 
-                var runState = new ComponentRunContext(mConfiguration.DryRun, environment);
+                var runState = new ComponentRunContext(mConfiguration, environment);
                 if (RunComponent(ActionConstants.Deploy, runState))
                     Beep("success");
                 else
@@ -120,9 +128,9 @@ namespace DBBranchManager
             });
         }
 
-        private void RunGenerateScripts(string environment)
+        private void RunAction(string action, string env)
         {
-            Program.Post(() => { RunComponent(ActionConstants.GenerateScripts, new ComponentRunContext(mConfiguration.DryRun, environment)); });
+            Program.Post(() => { RunComponent(action, new ComponentRunContext(mConfiguration, env)); });
         }
 
         private bool RunComponent(string action, ComponentRunContext runState)
@@ -131,7 +139,7 @@ namespace DBBranchManager
 
             foreach (var log in mRootComponent.Run(action, runState))
             {
-                Console.WriteLine("[{0:T}] {1}{2}", DateTime.Now, new string(' ', runState.Depth*2), log);
+                Console.WriteLine("[{0:T}] {1}{2}", DateTime.Now, new string(' ', runState.Depth * 2), log);
                 if (runState.Error)
                 {
                     Console.WriteLine("[{0:T}] Blocking Errors Detected ):", DateTime.Now);

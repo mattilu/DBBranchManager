@@ -1,8 +1,8 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace DBBranchManager.Config
 {
@@ -11,6 +11,7 @@ namespace DBBranchManager.Config
         public List<DatabaseConnectionInfo> DatabaseConnections { get; set; }
         public List<DatabaseInfo> Databases { get; set; }
         public List<BranchInfo> Branches { get; set; }
+        public string ReleasePackagesPath { get; set; }
         public string ActiveBranch { get; set; }
         public string BackupBranch { get; set; }
         public int ExecutionDelay { get; set; }
@@ -50,6 +51,7 @@ namespace DBBranchManager.Config
                         Parent = (string)x.Value["parent"],
                         DeployPath = (string)x.Value["deployPath"]
                     }).ToList(),
+                    ReleasePackagesPath = (string)jConfig["releasePackagesPath"],
                     ActiveBranch = (string)jConfig["activeBranch"],
                     BackupBranch = (string)jConfig["backupBranch"],
                     ExecutionDelay = (int?)jConfig["executionDelay"] ?? 3000,

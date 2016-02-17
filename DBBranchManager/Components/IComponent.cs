@@ -1,21 +1,40 @@
 ﻿using System.Collections.Generic;
+using DBBranchManager.Config;
 
 namespace DBBranchManager.Components
 {
     internal class ComponentRunContext
     {
+        private readonly Configuration mConfig;
+        private readonly string mEnvironment;
         private bool mError;
         private int mDepth;
 
-        public ComponentRunContext(bool dryRun, string environment)
+        public ComponentRunContext(Configuration config) :
+            this(config, config.Environment)
         {
-            DryRun = dryRun;
-            Environment = environment;
-            mDepth = 0;
         }
 
-        public bool DryRun { get; private set; }
-        public string Environment { get; private set; }
+        public ComponentRunContext(Configuration config, string environment)
+        {
+            mConfig = config;
+            mEnvironment = environment;
+        }
+
+        public Configuration Config
+        {
+            get { return mConfig; }
+        }
+
+        public bool DryRun
+        {
+            get { return mConfig.DryRun; }
+        }
+
+        public string Environment
+        {
+            get { return mEnvironment; }
+        }
 
         public bool Error
         {

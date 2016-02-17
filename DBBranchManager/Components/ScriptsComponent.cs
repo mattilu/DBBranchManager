@@ -33,7 +33,7 @@ namespace DBBranchManager.Components
                 yield return string.Format("Scripts: {0}", mScriptsPath);
 
                 var sb = new StringBuilder();
-                GenerateScript(runContext.Environment, sb, true).RunToEnd();
+                GenerateScript(runContext.Environment, sb, true, mScriptsPath).RunToEnd();
 
                 var script = sb.ToString();
                 yield return "Running script...";
@@ -69,7 +69,7 @@ namespace DBBranchManager.Components
                 var sb = new StringBuilder();
                 using (runContext.DepthScope())
                 {
-                    foreach (var log in GenerateScript(runContext.Environment, sb, false))
+                    foreach (var log in GenerateScript(runContext.Environment, sb, false, mScriptsPath))
                     {
                         yield return log;
                     }
@@ -82,7 +82,13 @@ namespace DBBranchManager.Components
             }
         }
 
-        private IEnumerable<string> GenerateScript(string environment, StringBuilder sb, bool commit)
+        [RunAction(ActionConstants.MakeReleasePackage)]
+        private IEnumerable<string> MakeReleasePackageRun(string action, ComponentRunContext runContext)
+        {
+            yield break;
+        }
+
+        private IEnumerable<string> GenerateScript(string environment, StringBuilder sb, bool commit, object scriptsPath)
         {
             sb.AppendFormat(@"
 :on error exit
@@ -98,7 +104,7 @@ BEGIN TRANSACTION
 GO
 
 TRUNCATE TABLE [Interdependencies].[TBC_CACHE_ITEM_DEPENDENCY]
-", mScriptsPath);
+", scriptsPath);
 
             foreach (var file in FileUtils.EnumerateFiles(mScriptsPath, ScriptFileRegex.IsMatch))
             {

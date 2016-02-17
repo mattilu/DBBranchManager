@@ -15,7 +15,8 @@ namespace DBBranchManager.Components
         private readonly string mDeployPath;
         private readonly DatabaseConnectionInfo mDbConnection;
 
-        public BranchComponent(string name, string basePath, string deployPath, DatabaseConnectionInfo dbConnection)
+        public BranchComponent(string name, string basePath, string deployPath, DatabaseConnectionInfo dbConnection) :
+            base(string.Format("Branch {0}", name))
         {
             mName = name;
             mBasePath = basePath;
@@ -25,8 +26,6 @@ namespace DBBranchManager.Components
 
         protected override IEnumerable<IComponent> GetComponentsToRun(string action, ComponentRunContext runContext)
         {
-            yield return new LogComponent(string.Format("Branch {0}: Begin", mName));
-
             if (Directory.Exists(mBasePath))
             {
                 var toDeployDirs = Directory.EnumerateDirectories(mBasePath)
@@ -37,8 +36,6 @@ namespace DBBranchManager.Components
                     yield return new ReleaseComponent(toDeployDir, mDeployPath, mDbConnection);
                 }
             }
-
-            yield return new LogComponent(string.Format("Branch {0}: End", mName));
         }
     }
 }

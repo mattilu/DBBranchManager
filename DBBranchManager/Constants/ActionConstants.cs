@@ -4,5 +4,6 @@
     {
         public const string Deploy = "deploy";
         public const string GenerateScripts = "generate-scripts";
+        public const string MakeReleasePackage = "make-release-package";
     }
 }

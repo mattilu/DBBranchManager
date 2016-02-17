@@ -12,7 +12,8 @@ namespace DBBranchManager.Components
         private readonly BranchInfo mBackupBranch;
         private readonly DatabaseInfo[] mDatabasesInfos;
 
-        public DeployComponent(IDependencyGraph<BranchInfo> branchGraph, string backupBranch, string activeBranch, IEnumerable<DatabaseInfo> databasesInfos)
+        public DeployComponent(IDependencyGraph<BranchInfo> branchGraph, string backupBranch, string activeBranch, IEnumerable<DatabaseInfo> databasesInfos) :
+            base(null, "Done!")
         {
             var branchesByName = branchGraph.GetPath().ToDictionary(x => x.Name);
             mBranchGraph = branchGraph;
@@ -23,8 +24,6 @@ namespace DBBranchManager.Components
 
         protected override IEnumerable<IComponent> GetComponentsToRun(string action, ComponentRunContext runContext)
         {
-            yield return new LogComponent(string.Format("Beginning deploy: {0}", runContext.Environment));
-
             foreach (var databaseInfo in mDatabasesInfos)
             {
                 yield return new RestoreDatabaseComponent(databaseInfo);
@@ -34,8 +33,11 @@ namespace DBBranchManager.Components
             {
                 yield return new BranchComponent(branchInfo.Name, branchInfo.BasePath, branchInfo.DeployPath, mDatabasesInfos[0].Connection);
             }
+        }
 
-            yield return new LogComponent("Done!");
+        protected override IComponent GetPreComponent(string action, ComponentRunContext runContext)
+        {
+            return new LogComponent(string.Format("Beginning deploy: {0}", runContext.Environment));
         }
     }
 }
