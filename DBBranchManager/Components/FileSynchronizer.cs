@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -10,9 +11,16 @@ namespace DBBranchManager.Components
     {
         private readonly string mSourcePath;
         private readonly string mDestinationPath;
-        private readonly Regex mFilter;
+        private readonly Func<string, bool> mFilter;
 
         public FileSynchronizer(string sourcePath, string destinationPath, Regex filter)
+        {
+            mSourcePath = sourcePath;
+            mDestinationPath = destinationPath;
+            mFilter = filter.IsMatch;
+        }
+
+        public FileSynchronizer(string sourcePath, string destinationPath, Func<string, bool> filter)
         {
             mSourcePath = sourcePath;
             mDestinationPath = destinationPath;
@@ -30,7 +38,7 @@ namespace DBBranchManager.Components
                         Directory.CreateDirectory(mDestinationPath);
                 }
 
-                foreach (var f in FileUtils.EnumerateFiles2(mSourcePath, mFilter.IsMatch))
+                foreach (var f in FileUtils.EnumerateFiles2(mSourcePath, mFilter))
                 {
                     var fileName = f.FileName;
                     Debug.Assert(fileName != null, "fileName != null");

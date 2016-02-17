@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -98,7 +99,7 @@ namespace DBBranchManager.Components
 
                 using (runContext.DepthScope())
                 {
-                    var synchronizer = new FileSynchronizer(mScriptsPath, packageDir, ScriptFileRegex);
+                    var synchronizer = new FileSynchronizer(mScriptsPath, packageDir, GetScriptsFilterByEnvironment(runContext.Environment));
                     foreach (var log in synchronizer.Run(action, runContext))
                     {
                         yield return log;
@@ -136,10 +137,10 @@ GO
 TRUNCATE TABLE [Interdependencies].[TBC_CACHE_ITEM_DEPENDENCY]
 ", scriptsPath);
 
+            var filter = GetScriptsFilterByEnvironment(environment);
             foreach (var file in FileUtils.EnumerateFiles(mScriptsPath, ScriptFileRegex.IsMatch))
             {
-                var match = ScriptFileRegex.Match(file);
-                if (match.Success && (!match.Groups["env"].Success || match.Groups["env"].Value == environment))
+                if (filter(file))
                 {
                     sb.AppendFormat("\nPRINT 'BEGIN {0}'\nGO\n:r $(path)\\\"{0}\"\nGO\nPRINT 'END {0}'", file);
                     yield return string.Format("Adding {0}", file);
@@ -160,6 +161,15 @@ TRUNCATE TABLE [Interdependencies].[TBC_CACHE_ITEM_DEPENDENCY]
                 yield return "Adding Rollback...";
                 sb.Append("\nGO\n\nPRINT 'Rolling Back...'\nROLLBACK TRANSACTION\n--COMMIT TRANSACTION");
             }
+        }
+
+        private static Func<string, bool> GetScriptsFilterByEnvironment(string environment)
+        {
+            return file =>
+            {
+                var match = ScriptFileRegex.Match(file);
+                return !match.Groups["env"].Success || match.Groups["env"].Value == environment;
+            };
         }
     }
 }
