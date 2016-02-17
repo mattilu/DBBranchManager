@@ -7,12 +7,17 @@ namespace DBBranchManager
 {
     public static class Program
     {
+        private static readonly TimeSpan FastExceptionTriggerSpan = TimeSpan.FromSeconds(1);
+        private const int FastExceptionBreakThreshold = 3;
+
         private static readonly SingleThreadSynchronizationContext SyncContext = new SingleThreadSynchronizationContext();
         private const string ConfigFilePath = @"..\..\config.json";
 
         public static void Main(string[] args)
         {
             var restart = false;
+            var exceptionsCount = 0;
+            var lastExceptionTime = DateTime.UtcNow;
 
             Application app = null;
             var watcher = new EnhanchedFileSystemWatcher();
@@ -41,6 +46,23 @@ namespace DBBranchManager
                 catch (Exception ex)
                 {
                     Console.WriteLine(ex);
+                    var sinceLastException = DateTime.UtcNow - lastExceptionTime;
+                    if (sinceLastException < FastExceptionTriggerSpan)
+                    {
+                        if (++exceptionsCount >= FastExceptionBreakThreshold)
+                        {
+                            Console.WriteLine(@"
+Too many exception happened in too short a time. This probably means you have a broken config.
+Try to fix the problem, then press any key to continue...");
+                            Console.ReadKey(true);
+                            exceptionsCount = 0;
+                        }
+                    }
+                    else
+                    {
+                        exceptionsCount = 0;
+                    }
+                    lastExceptionTime = DateTime.UtcNow;
                     Console.WriteLine("\nRestarting...");
                     restart = true;
                 }
