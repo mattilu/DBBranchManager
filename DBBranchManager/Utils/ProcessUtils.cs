@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace DBBranchManager.Utils
 {
@@ -46,11 +47,12 @@ namespace DBBranchManager.Utils
         private class ProcessExecutionResult : IProcessExecutionResult
         {
             private readonly Process mProcess;
+            private readonly Stream mInputStream;
             private readonly StringBuilder mStandardOutput;
             private readonly StringBuilder mStandardError;
+            private readonly BlockingCollection<ProcessOutputLine> mOutput;
             private bool mOutputFinished;
             private bool mErrorFinished;
-            private readonly BlockingCollection<ProcessOutputLine> mOutput;
             private bool mDisposed;
 
 
@@ -66,6 +68,7 @@ namespace DBBranchManager.Utils
                         RedirectStandardError = true
                     }
                 };
+                mInputStream = input;
 
                 mStandardOutput = new StringBuilder();
                 mStandardError = new StringBuilder();
@@ -78,16 +81,22 @@ namespace DBBranchManager.Utils
 
                 mProcess.BeginOutputReadLine();
                 mProcess.BeginErrorReadLine();
-
-                input.CopyTo(mProcess.StandardInput.BaseStream);
-                mProcess.StandardInput.BaseStream.Flush();
             }
 
             #region IProcessExecutionResult
 
             public IEnumerable<ProcessOutputLine> GetOutput()
             {
-                return mOutput.GetConsumingEnumerable();
+                var writeTask = mInputStream.CopyToAsync(mProcess.StandardInput.BaseStream).ContinueWith(_ =>
+                    mProcess.StandardInput.BaseStream.FlushAsync().ContinueWith(__ =>
+                        mProcess.StandardInput.BaseStream.Close()));
+
+                foreach (var outputLine in mOutput.GetConsumingEnumerable())
+                {
+                    yield return outputLine;
+                }
+
+                writeTask.Unwrap().Wait();
             }
 
             public string StandardOutput
@@ -123,6 +132,7 @@ namespace DBBranchManager.Utils
                 if (disposing)
                 {
                     mProcess.Dispose();
+                    mInputStream.Dispose();
                     mOutput.Dispose();
                 }
 
