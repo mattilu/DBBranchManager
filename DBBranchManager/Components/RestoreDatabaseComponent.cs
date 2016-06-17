@@ -27,7 +27,7 @@ namespace DBBranchManager.Components
 
             if (!runContext.DryRun)
             {
-                using (var process = SqlUtils.SqlCmdExec(mDatabaseInfo.Connection, script))
+                using (var process = SqlUtils.Exec(mDatabaseInfo.Connection, script))
                 {
                     foreach (var processOutputLine in process.GetOutput())
                     {

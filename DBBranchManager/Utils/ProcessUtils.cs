@@ -30,9 +30,6 @@ namespace DBBranchManager.Utils
     {
         IEnumerable<ProcessOutputLine> GetOutput();
 
-        string StandardOutput { get; }
-        string StandardError { get; }
-
         int ExitCode { get; }
     }
 
@@ -48,8 +45,6 @@ namespace DBBranchManager.Utils
         {
             private readonly Process mProcess;
             private readonly Stream mInputStream;
-            private readonly StringBuilder mStandardOutput;
-            private readonly StringBuilder mStandardError;
             private readonly BlockingCollection<ProcessOutputLine> mOutput;
             private bool mOutputFinished;
             private bool mErrorFinished;
@@ -70,8 +65,6 @@ namespace DBBranchManager.Utils
                 };
                 mInputStream = input;
 
-                mStandardOutput = new StringBuilder();
-                mStandardError = new StringBuilder();
                 mOutput = new BlockingCollection<ProcessOutputLine>();
 
                 mProcess.OutputDataReceived += OnOutputReceived;
@@ -97,16 +90,6 @@ namespace DBBranchManager.Utils
                 }
 
                 writeTask.Unwrap().Wait();
-            }
-
-            public string StandardOutput
-            {
-                get { return mStandardOutput.ToString(); }
-            }
-
-            public string StandardError
-            {
-                get { return mStandardError.ToString(); }
             }
 
             public int ExitCode
