@@ -1,7 +1,7 @@
-﻿using System.IO;
+using System.IO;
 using DBBranchManager.Config;
 
-namespace DBBranchManager.Utils
+namespace DBBranchManager.Utils.Sql
 {
     internal static class SqlUtils
     {

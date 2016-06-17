@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using DBBranchManager.Config;
 using DBBranchManager.Constants;
-using DBBranchManager.Utils;
+using DBBranchManager.Utils.Sql;
 
 namespace DBBranchManager.Components
 {
@@ -17,12 +17,11 @@ namespace DBBranchManager.Components
         [RunAction(ActionConstants.Deploy)]
         private IEnumerable<string> DeployRun(string action, ComponentRunContext runContext)
         {
-            var script = string.Format(@"
-USE [master]
-ALTER DATABASE [{0}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE
-RESTORE DATABASE [{0}] FROM  DISK = N'{1}' WITH  FILE = 1,  NOUNLOAD,  STATS = 5
-ALTER DATABASE [{0}] SET MULTI_USER
-", mDatabaseInfo.Name, mDatabaseInfo.BackupFilePath);
+            var script = string.Format("USE [master]\n" +
+                                       "ALTER DATABASE [{0}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE\n" +
+                                       "RESTORE DATABASE [{0}] FROM  DISK = N\'{1}\' WITH  FILE = 1,  NOUNLOAD,  STATS = 5\n" +
+                                       "ALTER DATABASE [{0}] SET MULTI_USER\n",
+                mDatabaseInfo.Name, mDatabaseInfo.BackupFilePath);
 
             yield return string.Format("Restoring {0}", mDatabaseInfo.Name);
 

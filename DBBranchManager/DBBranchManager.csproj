@@ -105,7 +105,7 @@
     <Compile Include="Utils\ProcessUtils.cs" />
     <Compile Include="Utils\IdentityComparer.cs" />
     <Compile Include="Utils\SingleThreadSynchronizationContext.cs" />
-    <Compile Include="Utils\SqlUtils.cs" />
+    <Compile Include="Utils\Sql\SqlUtils.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
