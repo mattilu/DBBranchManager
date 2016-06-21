@@ -3,7 +3,9 @@
     "localhost": {
       "server": "localhost",
       "user": "sa",
-      "password": "xxxxx"
+      "password": "xxxxx",
+      "relocatePath": "D:\\Databases",
+      "relocate": true
     }
   },
   "databases": {

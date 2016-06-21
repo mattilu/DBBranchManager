@@ -6,6 +6,8 @@ namespace DBBranchManager.Utils.Sql
 {
     internal sealed class SqlCommandFactory : IDisposable
     {
+        private static readonly object NullObject = new object();
+
         private readonly string mConnectionString;
         private readonly SqlMessageEventHandler mOnMessage;
         private readonly Dictionary<object, Tuple<SqlConnection, ConnectionMessageHandler>> mMap;
@@ -29,10 +31,12 @@ namespace DBBranchManager.Utils.Sql
 
         public SqlCommand CreateCommand(object context)
         {
+            var key = context ?? NullObject;
+
             Tuple<SqlConnection, ConnectionMessageHandler> connection;
-            if (!mMap.TryGetValue(context, out connection))
+            if (!mMap.TryGetValue(key, out connection))
             {
-                mMap[context] = connection = CreateConnection(context);
+                mMap[key] = connection = CreateConnection(context);
             }
 
             return CreateCommandFrom(connection.Item1);

@@ -33,17 +33,25 @@ namespace DBBranchManager.Config
                     Name = x.Name,
                     Server = (string)x.Value["server"],
                     User = (string)x.Value["user"],
-                    Password = (string)x.Value["password"]
+                    Password = (string)x.Value["password"],
+                    RelocatePath = (string)x.Value["relocatePath"],
+                    Relocate = (bool?)x.Value["relocate"] ?? false
                 });
 
                 return new Configuration
                 {
                     DatabaseConnections = dbcs.Values.ToList(),
-                    Databases = jConfig["databases"].OfType<JProperty>().Select(x => new DatabaseInfo
+                    Databases = jConfig["databases"].OfType<JProperty>().Select(x =>
                     {
-                        Name = x.Name,
-                        Connection = dbcs[(string)x.Value["connection"]],
-                        BackupFilePath = (string)x.Value["backupFilePath"]
+                        var connection = dbcs[(string)x.Value["connection"]];
+                        return new DatabaseInfo
+                        {
+                            Name = x.Name,
+                            Connection = connection,
+                            BackupFilePath = (string)x.Value["backupFilePath"],
+                            RelocatePath = (string)x.Value["relocatePath"] ?? connection.RelocatePath,
+                            Relocate = (bool?)x.Value["relocate"] ?? connection.Relocate
+                        };
                     }).ToList(),
                     Branches = jConfig["branches"].OfType<JProperty>().Select(x => new BranchInfo
                     {

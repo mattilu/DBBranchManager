@@ -108,6 +108,7 @@
     <Compile Include="Utils\Sql\SqlCommandFactory.cs" />
     <Compile Include="Utils\Sql\SqlMessageEventArgs.cs" />
     <Compile Include="Utils\Sql\SqlMessageEventHandler.cs" />
+    <Compile Include="Utils\Sql\SqlParamCollection.cs" />
     <Compile Include="Utils\Sql\SqlUtils.cs" />
   </ItemGroup>
   <ItemGroup>
