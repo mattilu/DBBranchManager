@@ -83,8 +83,9 @@ namespace DBBranchManager
                 {
                     string env = null;
                     var skipRestore = false;
-                    foreach (var arg in argv)
+                    for (var i = 1; i < argv.Length; ++i)
                     {
+                        var arg = argv[i];
                         if (arg == "-s" || arg == "--skip-restore")
                             skipRestore = true;
                         else if (env == null)
