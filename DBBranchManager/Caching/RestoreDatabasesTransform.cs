@@ -86,7 +86,7 @@ namespace DBBranchManager.Caching
             sb.AppendFormat(
                 "\nALTER DATABASE {0} SET MULTI_USER\n", dbName);
 
-            log.LogFormat("Restoring {0}", db.Name);
+            log.LogFormat("Restoring {0} from {1}", db.Name, db.BackupFilePath);
 
             if (!dryRun)
             {
