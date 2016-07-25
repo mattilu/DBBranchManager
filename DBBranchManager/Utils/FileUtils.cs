@@ -15,28 +15,6 @@ namespace DBBranchManager.Utils
                 .OrderBy(x => x, new NaturalSortComparer());
         }
 
-        public class FileData
-        {
-            private readonly string mFullPath;
-            private readonly string mFileName;
-
-            public FileData(string fullPath)
-            {
-                mFullPath = fullPath;
-                mFileName = Path.GetFileName(fullPath);
-            }
-
-            public string FullPath
-            {
-                get { return mFullPath; }
-            }
-
-            public string FileName
-            {
-                get { return mFileName; }
-            }
-        }
-
         public static IEnumerable<FileData> EnumerateFiles2(string path, Func<string, bool> filter)
         {
             return Directory.EnumerateFiles(path)
@@ -69,6 +47,71 @@ namespace DBBranchManager.Utils
             foreach (var fileInfo in dir.GetFiles())
             {
                 fileInfo.Attributes &= ~FileAttributes.ReadOnly;
+            }
+        }
+
+        public static IEnumerable<string> ExpandGlob(string glob)
+        {
+            return GlobHelper(PathHead(glob) + Path.DirectorySeparatorChar, PathTail(glob));
+        }
+
+        private static IEnumerable<string> GlobHelper(string head, string tail)
+        {
+            if (PathTail(tail) == tail)
+                return Directory.GetFiles(head, tail).OrderBy(x => x);
+
+            return Directory.GetDirectories(head, PathHead(tail)).OrderBy(x => x)
+                .SelectMany(x => GlobHelper(Path.Combine(head, x), PathTail(tail)));
+        }
+
+        private static string PathHead(string path)
+        {
+            var index = path.IndexOf(Path.DirectorySeparatorChar);
+            if (index < 0)
+                return path;
+            return path.Substring(0, index);
+        }
+
+        private static string PathTail(string path)
+        {
+            var index = path.IndexOf(Path.DirectorySeparatorChar);
+            if (index < 0)
+                return path;
+            return path.Substring(index + 1);
+        }
+
+        public static string ToLocalPath(string path)
+        {
+            return path == null ? null : path.Replace('/', Path.DirectorySeparatorChar);
+        }
+
+        public static string ToLocalPath(params string[] paths)
+        {
+            return Path.Combine(paths
+                .Where(x => x != null)
+                .Select(ToLocalPath)
+                .ToArray());
+        }
+
+        public class FileData
+        {
+            private readonly string mFullPath;
+            private readonly string mFileName;
+
+            public FileData(string fullPath)
+            {
+                mFullPath = fullPath;
+                mFileName = Path.GetFileName(fullPath);
+            }
+
+            public string FullPath
+            {
+                get { return mFullPath; }
+            }
+
+            public string FileName
+            {
+                get { return mFileName; }
             }
         }
     }

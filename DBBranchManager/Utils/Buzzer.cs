@@ -5,9 +5,9 @@ namespace DBBranchManager.Utils
 {
     internal class Buzzer
     {
-        public static void Beep(int frequency, int duration, int times, float dutyTime)
+        public static void Beep(int frequency, int duration, int times, double dutyTime)
         {
-            var time = (float)duration / times;
+            var time = (double)duration / times;
             var onTime = (int)(time * dutyTime);
             var offTime = (int)(time - onTime);
 

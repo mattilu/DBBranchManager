@@ -5,7 +5,8 @@ using System.Data;
 using System.Data.SqlClient;
 using System.IO;
 using System.Linq;
-using DBBranchManager.Config;
+using DBBranchManager.Entities;
+using DBBranchManager.Entities.Config;
 
 namespace DBBranchManager.Utils.Sql
 {
@@ -16,9 +17,9 @@ namespace DBBranchManager.Utils.Sql
             return string.Format("[{0}]", identifier.Replace("]", "]]"));
         }
 
-        public static IProcessExecutionResult SqlCmdExec(DatabaseConnectionInfo db, string script)
+        public static IProcessExecutionResult SqlCmdExec(DatabaseConnectionConfig databaseConnection, string script)
         {
-            var args = string.Format(@"-r 1 -S ""{0}"" -U ""{1}"" -P ""{2}""", db.Server, db.User, db.Password);
+            var args = string.Format(@"-r 1 -S ""{0}"" -U ""{1}"" -P ""{2}""", databaseConnection.Server, databaseConnection.User, databaseConnection.Password.ToUnsecureString());
             var input = new MemoryStream();
             var writer = new StreamWriter(input);
             writer.WriteLine(script);
@@ -31,19 +32,14 @@ namespace DBBranchManager.Utils.Sql
             return ProcessUtils.Exec("sqlcmd", args, input);
         }
 
-        public static IProcessExecutionResult Exec(DatabaseConnectionInfo db, string script)
+        public static IProcessExecutionResult Exec(DatabaseConnectionConfig databaseConnection, string dbName, string script, IEnumerable<SqlParameter> parameters)
         {
-            return Exec(db, script, Enumerable.Empty<SqlParameter>());
+            return new SqlCommandExecutionResult(databaseConnection, dbName, script, parameters);
         }
 
-        public static IProcessExecutionResult Exec(DatabaseConnectionInfo db, string script, IEnumerable<SqlParameter> parameters)
+        public static IReadOnlyCollection<Tuple<string, string>> GetLogicalAndPhysicalNamesFromBackupFile(DatabaseConnectionConfig databaseConnection, string backupFile)
         {
-            return new SqlCommandExecutionResult(db, db.Name, script, parameters);
-        }
-
-        public static IReadOnlyCollection<Tuple<string, string>> GetLogicalAndPhysicalNamesFromBackupFile(DatabaseConnectionInfo db, string backupFile)
-        {
-            using (var f = new SqlCommandFactory(ToConnectionString(db), null))
+            using (var f = new SqlCommandFactory(ToConnectionString(databaseConnection), null))
             using (var cmd = f.CreateCommand(null))
             {
                 cmd.CommandText = "RESTORE FILELISTONLY FROM DISK = @path";
@@ -65,13 +61,13 @@ namespace DBBranchManager.Utils.Sql
             }
         }
 
-        private static string ToConnectionString(DatabaseConnectionInfo db)
+        private static string ToConnectionString(DatabaseConnectionConfig databaseConnection)
         {
             var csb = new SqlConnectionStringBuilder
             {
-                DataSource = db.Server,
-                UserID = db.User,
-                Password = db.Password
+                DataSource = databaseConnection.Server,
+                UserID = databaseConnection.User,
+                Password = databaseConnection.Password.ToUnsecureString()
             };
 
             return csb.ToString();
@@ -85,7 +81,7 @@ namespace DBBranchManager.Utils.Sql
             private bool mGotErrors;
             private bool mDisposed;
 
-            public SqlCommandExecutionResult(DatabaseConnectionInfo db, string name, string script, IEnumerable<SqlParameter> parameters)
+            public SqlCommandExecutionResult(DatabaseConnectionConfig db, string name, string script, IEnumerable<SqlParameter> parameters)
             {
                 mFactory = new SqlCommandFactory(ToConnectionString(db), OnMessage);
                 mCommand = mFactory.CreateCommand(name);
@@ -164,5 +160,7 @@ namespace DBBranchManager.Utils.Sql
 
             #endregion
         }
+
+
     }
 }

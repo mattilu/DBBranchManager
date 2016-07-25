@@ -1,25 +1,51 @@
-﻿using System.IO;
-using System.Linq;
-using DBBranchManager.Components;
-using DBBranchManager.Config;
+﻿using System;
+using System.Runtime.InteropServices;
+using System.Security;
+using DBBranchManager.Logging;
+using DBBranchManager.Tasks;
 
 namespace DBBranchManager.Utils
 {
     internal static class MiscExtensions
     {
-        public static string GetPackageDirectory(this Configuration config, params string[] paths)
+        public static string ToUnsecureString(this SecureString value)
         {
-            return Path.Combine(new[] { config.ReleasePackagesPath }.Union(paths).ToArray());
+            var valuePtr = IntPtr.Zero;
+            try
+            {
+                valuePtr = Marshal.SecureStringToGlobalAllocUnicode(value);
+                return Marshal.PtrToStringUni(valuePtr);
+            }
+            finally
+            {
+                Marshal.ZeroFreeGlobalAllocUnicode(valuePtr);
+            }
         }
 
-        public static string GetPackageDirectory(this Configuration config, BranchInfo branch, params string[] paths)
+        public static IDisposable IndentScope(this TaskExecutionContext context)
         {
-            return config.GetPackageDirectory(new[] { config.ReleasePackagesPath, branch.Name }.Union(paths).ToArray());
+            return new IndentScopeImpl(context.Log);
         }
 
-        public static string GetPackageDirectory(this Configuration config, ReleaseInfo release, params string[] paths)
+        public static IDisposable IndentScope(this ILog log)
         {
-            return config.GetPackageDirectory(release.Branch, new[] { release.Name }.Union(paths).ToArray());
+            return new IndentScopeImpl(log);
+        }
+
+        private class IndentScopeImpl : IDisposable
+        {
+            private readonly ILog mLog;
+
+            public IndentScopeImpl(ILog log)
+            {
+                mLog = log;
+                log.Indent();
+            }
+
+            public void Dispose()
+            {
+                mLog.UnIndent();
+            }
         }
     }
 }

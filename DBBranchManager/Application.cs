@@ -1,196 +1,282 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
-using System.Threading;
-using DBBranchManager.Components;
-using DBBranchManager.Config;
-using DBBranchManager.Constants;
-using DBBranchManager.Dependencies;
+using DBBranchManager.Caching;
+using DBBranchManager.Entities;
+using DBBranchManager.Entities.Config;
+using DBBranchManager.Logging;
+using DBBranchManager.Tasks;
 using DBBranchManager.Utils;
 
 namespace DBBranchManager
 {
-    internal class Application : IDisposable
+    internal class Application
     {
-        private readonly CancellationTokenSource mCancellationTokenSource = new CancellationTokenSource();
-        private readonly Configuration mConfiguration;
-        private readonly IComponent mRootComponent;
-        private bool mDisposed;
+        private readonly CommandLineArguments mCommandLine;
+        private readonly UserConfig mUserConfig;
+        private readonly ProjectConfig mProjectConfig;
 
-        public Application(Configuration config)
+
+        public Application(string[] args)
         {
-            mConfiguration = config;
-            mRootComponent = new DeployComponent(CreateBranchGraph(config), config.BackupBranch, config.ActiveBranch, config.Databases);
+            mCommandLine = CommandLineArguments.Parse(args);
+            mUserConfig = UserConfig.LoadFromJson(mCommandLine.ConfigFile ?? "config.json");
+            mProjectConfig = ProjectConfig.LoadFromJson(Path.Combine(mUserConfig.ProjectRoot, mUserConfig.ProjectSettingsFile));
         }
 
-        public void Start()
+        public void Run()
         {
-            Console.WriteLine("Awaiting commands...");
-            BeginConsoleInput();
-        }
-
-        private IDependencyGraph<BranchInfo> CreateBranchGraph(Configuration config)
-        {
-            var branchesByName = config.Branches.ToDictionary(x => x.Name);
-            var graph = new DependencyGraph<BranchInfo>();
-
-            foreach (var branchInfo in config.Branches)
+            switch (mCommandLine.Command)
             {
-                if (branchInfo.Parent != null)
-                {
-                    var source = branchesByName[branchInfo.Parent];
-                    var target = branchesByName[branchInfo.Name];
-                    graph.AddDependency(source, target);
-                }
-                else
-                {
-                    graph.AddNode(branchesByName[branchInfo.Name]);
-                }
-            }
+                case "help":
+                    RunHelp();
+                    break;
 
-            return graph;
-        }
+                case "deploy":
+                    RunDeploy();
+                    break;
 
-        private async void BeginConsoleInput()
-        {
-            while (!mDisposed)
-            {
-                try
-                {
-                    var line = await ConsoleUtils.ReadLineAsync(mCancellationTokenSource.Token);
-                    if (mDisposed)
-                        return;
-                    OnConsoleInput(line);
-                }
-                catch (OperationCanceledException)
-                {
-                    return;
-                }
+                default:
+                    throw new InvalidOperationException(string.Format("Unknown command: {0}", mCommandLine.Command));
             }
         }
 
-        private void OnConsoleInput(string line)
+        private void RunHelp()
         {
-            var argv = line.Trim().Split(new[] { " " }, StringSplitOptions.RemoveEmptyEntries);
+        }
 
-            if (argv.Length == 0)
-                return;
+        private void RunDeploy()
+        {
+            var context = CreateRunContext();
+            var plan = BuildActionPlan(context);
 
-            var cmd = argv[0];
-            switch (cmd.ToLower())
+            var root = new ExecutionNode("Begin deploy", "Deploy completed");
+            root.AddChild(BuildRestoreDatabasesNode(plan.Databases, context));
+
+            foreach (var release in plan.Releases)
             {
-                case "force":
-                case "f":
+                var releaseNode = BuildReleaseNode(release, context);
+                root.AddChild(releaseNode);
+            }
+
+            var hash = StateHash.Empty;
+            root.Run(context, hash);
+        }
+
+        private ExecutionNode BuildRestoreDatabasesNode(DatabaseBackupInfo[] databases, RunContext context)
+        {
+            var node = new ExecutionNode("Restoring databases...", "All databases restored!");
+            node.AddChild(new ExecutionNode(new RestoreDatabasesTransform(mUserConfig.Databases.Connection, databases)));
+            return node;
+        }
+
+        private ExecutionNode BuildReleaseNode(ReleaseConfig release, RunContext context)
+        {
+            var node = new ExecutionNode(string.Format("Begin release {0}", release.Name), string.Format("End release {0}", release.Name));
+            foreach (var feature in release.Features)
+            {
+                node.AddChild(BuildFeatureNode(feature, context));
+            }
+
+            return node;
+        }
+
+        private ExecutionNode BuildFeatureNode(string featureName, RunContext context)
+        {
+            FeatureConfig feature;
+            if (!context.Features.TryGet(featureName, out feature))
+            {
+                throw new InvalidOperationException(string.Format("Cannot find feature {0}", featureName));
+            }
+
+            var node = new ExecutionNode(string.Format("Begin feature {0}", featureName), string.Format("End feature {0}", featureName));
+            foreach (var taskConfig in feature.Recipe)
+            {
+                var task = context.TaskManager.CreateTask(taskConfig);
+                var replacer = new VariableReplacer(context, feature, taskConfig);
+                node.AddChild(new ExecutionNode(task, new TaskExecutionContext(context, feature, taskConfig, replacer)));
+            }
+
+            return node;
+        }
+
+        private ActionPlan BuildActionPlan(RunContext context)
+        {
+            var dbFiles = Directory.EnumerateFiles(mUserConfig.Databases.Backups.Root)
+                .Select(x => new
                 {
-                    string env = null;
-                    var skipRestore = false;
-                    for (var i = 1; i < argv.Length; ++i)
+                    FullPath = x,
+                    Match = mUserConfig.Databases.Backups.Pattern.Match(Path.GetFileName(x))
+                })
+                .Where(x => x.Match.Success)
+                .Select(x => new
+                {
+                    x.FullPath,
+                    DbName = x.Match.Groups["dbName"].Value,
+                    Release = x.Match.Groups["release"].Value,
+                    Environment = x.Match.Groups["env"] != null ? x.Match.Groups["env"].Value : null
+                })
+                .GroupBy(x => x.Release)
+                .ToDictionary(x => x.Key, x => x.GroupBy(y => y.Environment)
+                    .ToDictionary(y => y.Key, y =>
+                        y.ToDictionary(z => z.DbName, z => z.FullPath)));
+
+            var releaseStack = new Stack<ReleaseConfig>();
+            var head = context.ActiveRelease;
+            while (true)
+            {
+                var dbsForRelease = TryGetValue(dbFiles, head.Name);
+                var userEnv = mUserConfig.EnvironmentVariables.GetOrDefault("environment");
+
+                var dbs = GetDatabaseBackups(dbsForRelease, userEnv);
+                if (dbs != null)
+                {
+                    return new ActionPlan(dbs, releaseStack.ToArray());
+                }
+
+                releaseStack.Push(head);
+                if (head.Baseline == null)
+                {
+                    throw new InvalidOperationException(string.Format("Cannot find a valid base to start. Last release found: {0}", head.Name));
+                }
+                if (!context.Releases.Releases.TryGet(head.Baseline, out head))
+                {
+                    throw new InvalidOperationException(string.Format("Cannot find release {0} (baseline of {1})", head.Baseline, head.Name));
+                }
+            }
+        }
+
+        private DatabaseBackupInfo[] GetDatabaseBackups(Dictionary<string, Dictionary<string, string>> dbsByEnv, string userEnv)
+        {
+            if (dbsByEnv == null)
+                return null;
+
+            if (userEnv != null)
+            {
+                var dbsForEnv = TryGetValue(dbsByEnv, userEnv);
+                if (dbsForEnv != null)
+                {
+                    var dbs = GetDatabaseBackups(dbsForEnv);
+                    if (dbs != null)
+                        return dbs;
+                }
+            }
+
+            foreach (var kvp in dbsByEnv)
+            {
+                var dbs = GetDatabaseBackups(kvp.Value);
+                if (dbs != null)
+                    return dbs;
+            }
+
+            return null;
+        }
+
+        private DatabaseBackupInfo[] GetDatabaseBackups(Dictionary<string, string> dbs)
+        {
+            var result = mProjectConfig.Databases.Select(x => new DatabaseBackupInfo(x, TryGetValue(dbs, x))).ToArray();
+            return result.Any(x => x.BackupFilePath == null) ? null : result;
+        }
+
+        private static TValue TryGetValue<TKey, TValue>(IDictionary<TKey, TValue> dict, TKey key)
+        {
+            TValue value;
+            return dict.TryGetValue(key, out value) ? value : default(TValue);
+        }
+
+        private RunContext CreateRunContext()
+        {
+            var releasesFile = Path.Combine(mUserConfig.ProjectRoot, mProjectConfig.Releases);
+            var releases = ReleasesConfig.LoadFromJson(releasesFile);
+
+            var featuresFiles = FileUtils.ExpandGlob(Path.Combine(mUserConfig.ProjectRoot, mProjectConfig.Features));
+            var features = FeatureConfigCollection.LoadFromMultipleJsons(featuresFiles);
+
+            var tasksFiles = FileUtils.ExpandGlob(Path.Combine(mUserConfig.ProjectRoot, mProjectConfig.Tasks));
+            var tasks = TaskDefinitionConfigCollection.LoadFromMultipleJsons(tasksFiles);
+
+            return new RunContext(mCommandLine, mUserConfig, mProjectConfig, releases, features, tasks, new TaskManager(tasks), new ConsoleLog());
+        }
+
+        private class ExecutionNode
+        {
+            private readonly string mLogPre;
+            private readonly string mLogPost;
+            private readonly IStateTransform mTransform;
+            private readonly List<ExecutionNode> mChildren = new List<ExecutionNode>();
+
+            public ExecutionNode(string logPre, string logPost)
+            {
+                mLogPre = logPre;
+                mLogPost = logPost;
+            }
+
+            public ExecutionNode(ITask task, TaskExecutionContext context) :
+                this(new TaskExecutionTransform(task, context))
+            {
+            }
+
+            public ExecutionNode(IStateTransform transform)
+            {
+                mTransform = transform;
+            }
+
+            public void AddChild(ExecutionNode node)
+            {
+                if (mTransform != null)
+                    throw new InvalidOperationException("Cannot add child nodes to an action-initialized execution node");
+
+                mChildren.Add(node);
+            }
+
+            public StateHash Run(RunContext context, StateHash hash)
+            {
+                if (mLogPre != null)
+                    context.Log.Log(mLogPre);
+
+                if (mTransform != null)
+                {
+                    hash = mTransform.RunTransform(hash, context.DryRun, context.Log);
+                }
+                else if (mChildren.Count > 0)
+                {
+                    using (context.Log.IndentScope())
                     {
-                        var arg = argv[i];
-                        if (arg == "-s" || arg == "--skip-restore")
-                            skipRestore = true;
-                        else if (env == null)
-                            env = arg;
+                        foreach (var child in mChildren)
+                        {
+                            hash = child.Run(context, hash);
+                        }
                     }
-
-                    if (env == null)
-                        env = mConfiguration.Environment;
-
-                    RunDeploy(env, skipRestore);
-                    break;
                 }
 
-                case "quit":
-                case "q":
-                    Program.Exit();
-                    break;
+                if (mLogPost != null)
+                    context.Log.Log(mLogPost);
 
-                case ActionConstants.GenerateScripts:
-                case "gs":
-                case "g":
-                {
-                    var env = argv.Length > 1 ? argv[1] : mConfiguration.Environment;
-                    RunAction(ActionConstants.GenerateScripts, env);
-                    break;
-                }
-
-                case ActionConstants.MakeReleasePackage:
-                case "rp":
-                {
-                    var env = argv.Length > 1 ? argv[1] : mConfiguration.Environment;
-                    RunAction(ActionConstants.MakeReleasePackage, env);
-                    break;
-                }
-
-                case "t":
-                    throw new Exception();
+                return hash;
             }
         }
 
-        private void RunDeploy(string environment, bool skipRestore)
+        private class ActionPlan
         {
-            Program.Post(() =>
+            private readonly DatabaseBackupInfo[] mDatabases;
+            private readonly ReleaseConfig[] mReleases;
+
+            public ActionPlan(DatabaseBackupInfo[] databases, ReleaseConfig[] releases)
             {
-                Console.WriteLine("[{0:T}] Shit's going down!\n", DateTime.Now);
-                Beep("start");
-
-                var runState = new ComponentRunContext(mConfiguration, environment, skipRestore);
-                if (RunComponent(ActionConstants.Deploy, runState))
-                    Beep("success");
-                else
-                    Beep("error");
-            });
-        }
-
-        private void RunAction(string action, string env)
-        {
-            Program.Post(() => { RunComponent(action, new ComponentRunContext(mConfiguration, env)); });
-        }
-
-        private bool RunComponent(string action, ComponentRunContext runState)
-        {
-            Console.WriteLine("[{0:T}] Running '{1}' action", DateTime.Now, action);
-
-            foreach (var log in mRootComponent.Run(action, runState))
-            {
-                Console.WriteLine("[{0:T}] {1}{2}", DateTime.Now, new string(' ', runState.Depth * 2), log);
-                if (runState.Error)
-                {
-                    Console.WriteLine("[{0:T}] Blocking Errors Detected ):", DateTime.Now);
-                    return false;
-                }
+                mDatabases = databases;
+                mReleases = releases;
             }
 
-            Console.WriteLine("\n[{0:T}] Success!\n", DateTime.Now);
-            return true;
-        }
-
-        private void Beep(string reason)
-        {
-            BeepInfo beep;
-            if (mConfiguration.Beeps.TryGetValue(reason, out beep))
+            public DatabaseBackupInfo[] Databases
             {
-                Buzzer.Beep(beep.Frequency, beep.Duration, beep.Times, beep.DutyTime);
-            }
-        }
-
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (mDisposed)
-                return;
-
-            if (disposing)
-            {
-                mCancellationTokenSource.Cancel();
-                mCancellationTokenSource.Dispose();
+                get { return mDatabases; }
             }
 
-            mDisposed = true;
+            public ReleaseConfig[] Releases
+            {
+                get { return mReleases; }
+            }
         }
     }
 }

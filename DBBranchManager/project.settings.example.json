@@ -1,0 +1,27 @@
+﻿{
+  "features": "features/*/feature.json",
+  "releases": "releases.json",
+  "databases": [
+    "DB_AVIVA_S2",
+    "DB_JOBSERVICES_S2"
+  ],
+  "environments": {
+    "dev": {
+      "description": "Local development environment",
+      "include": [ "dev", "test", "coll", "prod" ]
+    },
+    "test": {
+      "description": "Release in internal testing environment",
+      "include": [ "test" ]
+    },
+    "coll": {
+      "description": "Release in COLL",
+      "include": [ "coll", "collonly" ]
+    },
+    "prod": {
+      "description": "Release in PROD",
+      "include": [ "prod", "prodonly" ]
+    }
+  },
+  "tasks": "tasks/*.json" 
+}
