@@ -10,17 +10,24 @@ namespace DBBranchManager.Entities.Config
 {
     internal class UserConfig
     {
+        private readonly string mActiveRelease;
         private readonly DatabasesConfig mDatabases;
         private readonly EnvironmentVariablesConfig mEnvironmentVariables;
         private readonly BeepsConfig mBeeps;
 
-        public UserConfig(DatabasesConfig databases, EnvironmentVariablesConfig environmentVariables, BeepsConfig beeps)
+        public UserConfig(string activeRelease, DatabasesConfig databases, EnvironmentVariablesConfig environmentVariables, BeepsConfig beeps)
         {
+            mActiveRelease = activeRelease;
             mDatabases = databases;
             mEnvironmentVariables = environmentVariables;
             mBeeps = beeps;
         }
 
+
+        public string ActiveRelease
+        {
+            get { return mActiveRelease; }
+        }
 
         public DatabasesConfig Databases
         {
@@ -52,6 +59,7 @@ namespace DBBranchManager.Entities.Config
                 var jBeeps = jConfig["beeps"];
 
                 return new UserConfig(
+                    (string)jConfig["activeRelease"],
                     new DatabasesConfig(
                         new DatabaseConnectionConfig(
                             jConnection["server"].Value<string>(),

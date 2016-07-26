@@ -33,9 +33,10 @@ namespace DBBranchManager.Entities
             mTaskManager = taskManager;
             mLog = log;
 
-            if (!releases.Releases.TryGet(releases.DefaultRelease, out mActiveRelease))
+            var release = commandLine.Release ?? userConfig.ActiveRelease ?? releases.DefaultRelease;
+            if (!releases.Releases.TryGet(release, out mActiveRelease))
             {
-                throw new SoftFailureException(string.Format("Cannot find Release '{0}'", releases.DefaultRelease));
+                throw new SoftFailureException(string.Format("Cannot find Release '{0}'", release));
             }
 
             var userEnv = mUserConfig.EnvironmentVariables.GetOrDefault(EnvironmentConstants.Environment, EnvironmentConstants.DefaultEnvironment);

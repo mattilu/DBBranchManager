@@ -19,17 +19,22 @@ namespace DBBranchManager.Config
         {
             var unparsed = new List<string>();
             var command = "help";
+            string release = null;
             var dryRun = false;
 
             mIndex = 0;
             while (mIndex < mArgs.Length)
             {
                 string value;
-                if (TryGetFlag("-n", "--dry-run"))
+                if (TryGetArg("-r", "--release=", out value))
+                {
+                    release = value;
+                }
+                else if (TryGetFlag("-n", "--dry-run"))
                 {
                     dryRun = true;
                 }
-                if (!mArgs[mIndex].StartsWith("-"))
+                else if (!mArgs[mIndex].StartsWith("-"))
                 {
                     if (mGotCommand)
                         throw new SoftFailureException("Multiple commands specified");
@@ -45,7 +50,7 @@ namespace DBBranchManager.Config
                 ++mIndex;
             }
 
-            return new CommandLineArguments(command, dryRun, unparsed.ToArray());
+            return new CommandLineArguments(command, release, dryRun, unparsed.ToArray());
         }
 
         private bool TryGetFlag(string shortName, string longName)
