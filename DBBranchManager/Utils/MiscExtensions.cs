@@ -22,6 +22,16 @@ namespace DBBranchManager.Utils
             }
         }
 
+        public static SecureString ToSecureString(this string str)
+        {
+            var secure = new SecureString();
+            foreach (var c in str)
+            {
+                secure.AppendChar(c);
+            }
+            return secure;
+        }
+
         public static IDisposable IndentScope(this TaskExecutionContext context)
         {
             return new IndentScopeImpl(context.Log);
