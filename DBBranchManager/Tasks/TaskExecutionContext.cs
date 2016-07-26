@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using DBBranchManager.Entities;
 using DBBranchManager.Entities.Config;
 using DBBranchManager.Logging;

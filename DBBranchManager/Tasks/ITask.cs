@@ -1,4 +1,4 @@
-﻿namespace DBBranchManager.Tasks
+namespace DBBranchManager.Tasks
 {
     internal interface ITask
     {

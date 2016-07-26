@@ -1,4 +1,4 @@
-﻿{
+{
   "features": "features/*/feature.json",
   "releases": "releases.json",
   "databases": [

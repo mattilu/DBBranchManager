@@ -1,4 +1,4 @@
-﻿using DBBranchManager.Logging;
+using DBBranchManager.Logging;
 
 namespace DBBranchManager.Caching
 {

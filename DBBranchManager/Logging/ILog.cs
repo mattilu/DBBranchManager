@@ -1,4 +1,4 @@
-﻿namespace DBBranchManager.Logging
+namespace DBBranchManager.Logging
 {
     internal interface ILog
     {
