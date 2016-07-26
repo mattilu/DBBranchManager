@@ -106,12 +106,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
-    <None Include="config.example.json" />
     <None Include="packages.config" />
-    <None Include="feature.example.json" />
-    <None Include="project.settings.example.json" />
-    <None Include="releases.example.json" />
-    <None Include="task.example.json" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Database-Backup-icon.ico" />

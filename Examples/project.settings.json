@@ -23,5 +23,5 @@
       "include": [ "prod", "prodonly" ]
     }
   },
-  "tasks": "tasks/*.json" 
+  "tasks": "tasks/*.json"
 }
