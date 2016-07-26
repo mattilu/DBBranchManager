@@ -16,6 +16,7 @@ namespace DBBranchManager
     internal class Application
     {
         private readonly CommandLineArguments mCommandLine;
+        private readonly string mProjectRoot;
         private readonly UserConfig mUserConfig;
         private readonly ProjectConfig mProjectConfig;
 
@@ -23,8 +24,9 @@ namespace DBBranchManager
         public Application(string[] args)
         {
             mCommandLine = CommandLineArguments.Parse(args);
-            mUserConfig = UserConfig.LoadFromJson(mCommandLine.ConfigFile ?? "config.json");
-            mProjectConfig = ProjectConfig.LoadFromJson(Path.Combine(mUserConfig.ProjectRoot, mUserConfig.ProjectSettingsFile));
+            mProjectRoot = DiscoverProjectRoot();
+            mProjectConfig = ProjectConfig.LoadFromJson(Path.Combine(mProjectRoot, FileConstants.ProjectFileName));
+            mUserConfig = UserConfig.LoadFromJson(Path.Combine(mProjectRoot, FileConstants.UserFileName));
         }
 
         public int Run()
@@ -78,6 +80,20 @@ namespace DBBranchManager
 
             Beep("success");
             return 0;
+        }
+
+        private string DiscoverProjectRoot()
+        {
+            var path = Environment.CurrentDirectory;
+            do
+            {
+                if (File.Exists(Path.Combine(path, FileConstants.ProjectFileName)))
+                    return path;
+
+                path = Path.GetDirectoryName(path);
+            } while (path != null);
+
+            throw new SoftFailureException("Cannot find project root");
         }
 
         private void Beep(string type)
@@ -212,16 +228,16 @@ namespace DBBranchManager
 
         private RunContext CreateRunContext()
         {
-            var releasesFile = Path.Combine(mUserConfig.ProjectRoot, mProjectConfig.Releases);
+            var releasesFile = Path.Combine(mProjectRoot, mProjectConfig.Releases);
             var releases = ReleasesConfig.LoadFromJson(releasesFile);
 
-            var featuresFiles = FileUtils.ExpandGlob(Path.Combine(mUserConfig.ProjectRoot, mProjectConfig.Features));
+            var featuresFiles = FileUtils.ExpandGlob(Path.Combine(mProjectRoot, mProjectConfig.Features));
             var features = FeatureConfigCollection.LoadFromMultipleJsons(featuresFiles);
 
-            var tasksFiles = FileUtils.ExpandGlob(Path.Combine(mUserConfig.ProjectRoot, mProjectConfig.Tasks));
+            var tasksFiles = FileUtils.ExpandGlob(Path.Combine(mProjectRoot, mProjectConfig.Tasks));
             var tasks = TaskDefinitionConfigCollection.LoadFromMultipleJsons(tasksFiles);
 
-            return new RunContext(mCommandLine, mUserConfig, mProjectConfig, releases, features, tasks, new TaskManager(tasks), new ConsoleLog());
+            return new RunContext(mCommandLine, mProjectRoot, mUserConfig, mProjectConfig, releases, features, tasks, new TaskManager(tasks), new ConsoleLog());
         }
 
         private class ExecutionNode

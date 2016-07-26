@@ -8,6 +8,7 @@ namespace DBBranchManager.Entities
     internal class RunContext
     {
         private readonly CommandLineArguments mCommandLine;
+        private readonly string mProjectRoot;
         private readonly UserConfig mUserConfig;
         private readonly ProjectConfig mProjectConfig;
         private readonly ReleasesConfig mReleases;
@@ -19,9 +20,10 @@ namespace DBBranchManager.Entities
         private readonly EnvironmentConfig mActiveEnvironment;
         private readonly bool mDryRun;
 
-        public RunContext(CommandLineArguments commandLine, UserConfig userConfig, ProjectConfig projectConfig, ReleasesConfig releases, FeatureConfigCollection features, TaskDefinitionConfigCollection tasks, TaskManager taskManager, ILog log)
+        public RunContext(CommandLineArguments commandLine, string projectRoot, UserConfig userConfig, ProjectConfig projectConfig, ReleasesConfig releases, FeatureConfigCollection features, TaskDefinitionConfigCollection tasks, TaskManager taskManager, ILog log)
         {
             mCommandLine = commandLine;
+            mProjectRoot = projectRoot;
             mUserConfig = userConfig;
             mProjectConfig = projectConfig;
             mReleases = releases;
@@ -48,6 +50,11 @@ namespace DBBranchManager.Entities
         public CommandLineArguments CommandLine
         {
             get { return mCommandLine; }
+        }
+
+        public string ProjectRoot
+        {
+            get { return mProjectRoot; }
         }
 
         public UserConfig UserConfig

@@ -18,18 +18,13 @@ namespace DBBranchManager.Config
         public CommandLineArguments Parse()
         {
             var unparsed = new List<string>();
-            var configFile = "config.json";
             var command = "help";
 
             mIndex = 0;
             while (mIndex < mArgs.Length)
             {
                 string value;
-                if (TryGetArg("-c", "--config-file=", out value))
-                {
-                    configFile = value;
-                }
-                else if (!mArgs[mIndex].StartsWith("-"))
+                if (!mArgs[mIndex].StartsWith("-"))
                 {
                     if (mGotCommand)
                         throw new SoftFailureException("Multiple commands specified");
@@ -45,7 +40,7 @@ namespace DBBranchManager.Config
                 ++mIndex;
             }
 
-            return new CommandLineArguments(configFile, command, unparsed.ToArray());
+            return new CommandLineArguments(command, unparsed.ToArray());
         }
 
         private bool TryGetArg(string shortName, string longName, out string value)

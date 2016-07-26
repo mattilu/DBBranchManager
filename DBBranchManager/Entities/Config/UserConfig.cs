@@ -10,30 +10,17 @@ namespace DBBranchManager.Entities.Config
 {
     internal class UserConfig
     {
-        private readonly string mProjectRoot;
-        private readonly string mProjectSettingsFile;
         private readonly DatabasesConfig mDatabases;
         private readonly EnvironmentVariablesConfig mEnvironmentVariables;
         private readonly BeepsConfig mBeeps;
 
-        public UserConfig(string projectRoot, string projectSettingsFile, DatabasesConfig databases, EnvironmentVariablesConfig environmentVariables, BeepsConfig beeps)
+        public UserConfig(DatabasesConfig databases, EnvironmentVariablesConfig environmentVariables, BeepsConfig beeps)
         {
-            mProjectRoot = projectRoot;
-            mProjectSettingsFile = projectSettingsFile;
             mDatabases = databases;
             mEnvironmentVariables = environmentVariables;
             mBeeps = beeps;
         }
 
-        public string ProjectRoot
-        {
-            get { return mProjectRoot; }
-        }
-
-        public string ProjectSettingsFile
-        {
-            get { return mProjectSettingsFile; }
-        }
 
         public DatabasesConfig Databases
         {
@@ -65,8 +52,6 @@ namespace DBBranchManager.Entities.Config
                 var jBeeps = jConfig["beeps"];
 
                 return new UserConfig(
-                    FileUtils.ToLocalPath(jConfig["projectRoot"].Value<string>()),
-                    FileUtils.ToLocalPath(jConfig["projectSettingsFile"].Value<string>()),
                     new DatabasesConfig(
                         new DatabaseConnectionConfig(
                             jConnection["server"].Value<string>(),

@@ -58,6 +58,7 @@
     <Compile Include="Caching\TransformHelper.cs" />
     <Compile Include="Config\CommandLineArgumentsParser.cs" />
     <Compile Include="Constants\CommandConstants.cs" />
+    <Compile Include="Constants\FileConstants.cs" />
     <Compile Include="Entities\CommandLineArguments.cs" />
     <Compile Include="Entities\Config\BeepConfig.cs" />
     <Compile Include="Entities\Config\BeepsConfig.cs" />

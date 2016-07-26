@@ -68,7 +68,7 @@ namespace DBBranchManager.Tasks
         {
             var result = new Dictionary<string, string>();
 
-            result["projectRoot"] = context.UserConfig.ProjectRoot;
+            result["projectRoot"] = context.ProjectRoot;
             result["f:name"] = feature.Name;
             result["f:baseDirectory"] = feature.BaseDirectory;
 

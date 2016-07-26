@@ -4,20 +4,13 @@ namespace DBBranchManager.Entities
 {
     internal class CommandLineArguments
     {
-        private readonly string mConfigFile;
         private readonly string mCommand;
         private readonly string[] mUnparsed;
 
-        public CommandLineArguments(string configFile, string command, string[] unparsed)
+        public CommandLineArguments(string command, string[] unparsed)
         {
-            mConfigFile = configFile;
             mCommand = command;
             mUnparsed = unparsed;
-        }
-
-        public string ConfigFile
-        {
-            get { return mConfigFile; }
         }
 
         public string Command

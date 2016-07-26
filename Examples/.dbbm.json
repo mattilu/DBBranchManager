@@ -1,6 +1,4 @@
 {
-  "projectRoot": "D:/EV/Solvency2",
-  "projectSettingsFile": "project.settings.json",
   "databases": {
     "connection": {
       "server": "localhost",
