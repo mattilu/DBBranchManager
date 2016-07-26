@@ -3,7 +3,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace DBBranchManager.Utils
@@ -28,9 +27,9 @@ namespace DBBranchManager.Utils
 
     public interface IProcessExecutionResult : IDisposable
     {
-        IEnumerable<ProcessOutputLine> GetOutput();
-
         int ExitCode { get; }
+
+        IEnumerable<ProcessOutputLine> GetOutput();
     }
 
     internal static class ProcessUtils

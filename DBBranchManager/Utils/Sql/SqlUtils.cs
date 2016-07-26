@@ -4,8 +4,6 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.IO;
-using System.Linq;
-using DBBranchManager.Entities;
 using DBBranchManager.Entities.Config;
 
 namespace DBBranchManager.Utils.Sql
@@ -160,7 +158,5 @@ namespace DBBranchManager.Utils.Sql
 
             #endregion
         }
-
-
     }
 }
