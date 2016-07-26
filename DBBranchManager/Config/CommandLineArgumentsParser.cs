@@ -19,11 +19,16 @@ namespace DBBranchManager.Config
         {
             var unparsed = new List<string>();
             var command = "help";
+            var dryRun = false;
 
             mIndex = 0;
             while (mIndex < mArgs.Length)
             {
                 string value;
+                if (TryGetFlag("-n", "--dry-run"))
+                {
+                    dryRun = true;
+                }
                 if (!mArgs[mIndex].StartsWith("-"))
                 {
                     if (mGotCommand)
@@ -40,7 +45,17 @@ namespace DBBranchManager.Config
                 ++mIndex;
             }
 
-            return new CommandLineArguments(command, unparsed.ToArray());
+            return new CommandLineArguments(command, dryRun, unparsed.ToArray());
+        }
+
+        private bool TryGetFlag(string shortName, string longName)
+        {
+            if (mArgs[mIndex] == shortName)
+                return true;
+            if (mArgs[mIndex] == longName)
+                return true;
+
+            return false;
         }
 
         private bool TryGetArg(string shortName, string longName, out string value)

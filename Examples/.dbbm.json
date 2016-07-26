@@ -15,8 +15,7 @@
   "envVariables": {
     "packagesPath": "E:/Packages",
     "scriptsPath": "E:/ScriptsSII",
-    "environment": "dev",
-    "dryRun": false
+    "environment": "dev"
   },
   "beeps": {
     "start": {

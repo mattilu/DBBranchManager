@@ -1,3 +1,4 @@
+using DBBranchManager.Constants;
 using DBBranchManager.Entities.Config;
 using DBBranchManager.Exceptions;
 using DBBranchManager.Logging;
@@ -37,14 +38,13 @@ namespace DBBranchManager.Entities
                 throw new SoftFailureException(string.Format("Cannot find Release '{0}'", releases.DefaultRelease));
             }
 
-            var userEnv = mUserConfig.EnvironmentVariables.GetOrDefault("environment", "dev");
+            var userEnv = mUserConfig.EnvironmentVariables.GetOrDefault(EnvironmentConstants.Environment, EnvironmentConstants.DefaultEnvironment);
             if (!mProjectConfig.Environments.TryGet(userEnv, out mActiveEnvironment))
             {
                 throw new SoftFailureException(string.Format("Cannot find Environment '{0}'", userEnv));
             }
 
-            if (!bool.TryParse(mUserConfig.EnvironmentVariables.GetOrDefault("dryRun"), out mDryRun))
-                mDryRun = false;
+            mDryRun = commandLine.DryRun;
         }
 
         public CommandLineArguments CommandLine
