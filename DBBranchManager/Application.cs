@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using DBBranchManager.Caching;
+using DBBranchManager.Constants;
 using DBBranchManager.Entities;
 using DBBranchManager.Entities.Config;
 using DBBranchManager.Exceptions;
@@ -30,10 +31,10 @@ namespace DBBranchManager
         {
             switch (mCommandLine.Command)
             {
-                case "help":
+                case CommandConstants.Help:
                     return RunHelp();
 
-                case "deploy":
+                case CommandConstants.Deploy:
                     return RunDeploy();
 
                 default:
