@@ -95,6 +95,7 @@
     <Compile Include="Entities\Config\UserConfig.cs" />
     <Compile Include="Entities\DatabaseBackupInfo.cs" />
     <Compile Include="Entities\RunContext.cs" />
+    <Compile Include="Exceptions\SoftFailureException.cs" />
     <Compile Include="Logging\ConsoleLog.cs" />
     <Compile Include="Logging\ILog.cs" />
     <Compile Include="Program.cs" />

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Reflection;
 using DBBranchManager.Entities.Config;
+using DBBranchManager.Exceptions;
 
 namespace DBBranchManager.Tasks
 {
@@ -30,7 +31,7 @@ namespace DBBranchManager.Tasks
                 return new CustomTask(taskDefinition, this);
             }
 
-            throw new InvalidOperationException(string.Format("Cannot find task {0}", taskConfig.TaskName));
+            throw new SoftFailureException(string.Format("Cannot find task {0}", taskConfig.TaskName));
         }
 
         private static Dictionary<string, Type> CreateTypeMap()

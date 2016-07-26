@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
+using DBBranchManager.Exceptions;
 using DBBranchManager.Utils;
 using DBBranchManager.Utils.Sql;
 
@@ -54,7 +55,7 @@ namespace DBBranchManager.Tasks
 
                     if (sqlcmdResult.ExitCode != 0)
                     {
-                        throw new Exception("sqlcmd execution error");
+                        throw new SoftFailureException("One or more errors occurred during scripts execution");
                     }
                 }
             }

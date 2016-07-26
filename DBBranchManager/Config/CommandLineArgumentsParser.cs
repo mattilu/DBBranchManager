@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using DBBranchManager.Entities;
+using DBBranchManager.Exceptions;
 
 namespace DBBranchManager.Config
 {
@@ -32,7 +33,7 @@ namespace DBBranchManager.Config
                 else if (!mArgs[mIndex].StartsWith("-"))
                 {
                     if (mGotCommand)
-                        throw new InvalidOperationException("Multiple commands specified");
+                        throw new SoftFailureException("Multiple commands specified");
 
                     command = mArgs[mIndex];
                     mGotCommand = true;

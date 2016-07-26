@@ -1,5 +1,6 @@
 ﻿using System;
 using DBBranchManager.Entities.Config;
+using DBBranchManager.Exceptions;
 using DBBranchManager.Logging;
 using DBBranchManager.Tasks;
 
@@ -32,13 +33,13 @@ namespace DBBranchManager.Entities
 
             if (!releases.Releases.TryGet(releases.DefaultRelease, out mActiveRelease))
             {
-                throw new InvalidOperationException(string.Format("Cannot find Release '{0}'", releases.DefaultRelease));
+                throw new SoftFailureException(string.Format("Cannot find Release '{0}'", releases.DefaultRelease));
             }
 
             var userEnv = mUserConfig.EnvironmentVariables.GetOrDefault("environment", "dev");
             if (!mProjectConfig.Environments.TryGet(userEnv, out mActiveEnvironment))
             {
-                throw new InvalidOperationException(string.Format("Cannot find Environment '{0}'", userEnv));
+                throw new SoftFailureException(string.Format("Cannot find Environment '{0}'", userEnv));
             }
 
             if (!bool.TryParse(mUserConfig.EnvironmentVariables.GetOrDefault("dryRun"), out mDryRun))

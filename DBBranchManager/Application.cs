@@ -5,6 +5,7 @@ using System.Linq;
 using DBBranchManager.Caching;
 using DBBranchManager.Entities;
 using DBBranchManager.Entities.Config;
+using DBBranchManager.Exceptions;
 using DBBranchManager.Logging;
 using DBBranchManager.Tasks;
 using DBBranchManager.Utils;
@@ -25,28 +26,27 @@ namespace DBBranchManager
             mProjectConfig = ProjectConfig.LoadFromJson(Path.Combine(mUserConfig.ProjectRoot, mUserConfig.ProjectSettingsFile));
         }
 
-        public void Run()
+        public int Run()
         {
             switch (mCommandLine.Command)
             {
                 case "help":
-                    RunHelp();
-                    break;
+                    return RunHelp();
 
                 case "deploy":
-                    RunDeploy();
-                    break;
+                    return RunDeploy();
 
                 default:
-                    throw new InvalidOperationException(string.Format("Unknown command: {0}", mCommandLine.Command));
+                    throw new SoftFailureException(string.Format("Unknown command: {0}", mCommandLine.Command));
             }
         }
 
-        private void RunHelp()
+        private int RunHelp()
         {
+            return 0;
         }
 
-        private void RunDeploy()
+        private int RunDeploy()
         {
             var context = CreateRunContext();
             var plan = BuildActionPlan(context);
@@ -61,7 +61,17 @@ namespace DBBranchManager
             }
 
             var hash = StateHash.Empty;
-            root.Run(context, hash);
+            try
+            {
+                root.Run(context, hash);
+            }
+            catch (SoftFailureException ex)
+            {
+                context.Log.LogFormat("Blocking error detected: {0}", ex.Message);
+                return 1;
+            }
+
+            return 0;
         }
 
         private ExecutionNode BuildRestoreDatabasesNode(DatabaseBackupInfo[] databases, RunContext context)
@@ -87,7 +97,7 @@ namespace DBBranchManager
             FeatureConfig feature;
             if (!context.Features.TryGet(featureName, out feature))
             {
-                throw new InvalidOperationException(string.Format("Cannot find feature {0}", featureName));
+                throw new SoftFailureException(string.Format("Cannot find feature {0}", featureName));
             }
 
             var node = new ExecutionNode(string.Format("Begin feature {0}", featureName), string.Format("End feature {0}", featureName));
@@ -138,11 +148,11 @@ namespace DBBranchManager
                 releaseStack.Push(head);
                 if (head.Baseline == null)
                 {
-                    throw new InvalidOperationException(string.Format("Cannot find a valid base to start. Last release found: {0}", head.Name));
+                    throw new SoftFailureException(string.Format("Cannot find a valid base to start. Last release found: {0}", head.Name));
                 }
                 if (!context.Releases.Releases.TryGet(head.Baseline, out head))
                 {
-                    throw new InvalidOperationException(string.Format("Cannot find release {0} (baseline of {1})", head.Baseline, head.Name));
+                    throw new SoftFailureException(string.Format("Cannot find release {0} (baseline of {1})", head.Baseline, head.Name));
                 }
             }
         }
