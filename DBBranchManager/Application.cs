@@ -48,6 +48,8 @@ namespace DBBranchManager
 
         private int RunDeploy()
         {
+            Beep("start");
+
             var context = CreateRunContext();
             var plan = BuildActionPlan(context);
 
@@ -68,10 +70,22 @@ namespace DBBranchManager
             catch (SoftFailureException ex)
             {
                 context.Log.LogFormat("Blocking error detected: {0}", ex.Message);
+
+                Beep("error");
                 return 1;
             }
 
+            Beep("success");
             return 0;
+        }
+
+        private void Beep(string type)
+        {
+            BeepConfig beep;
+            if (mUserConfig.Beeps.TryGetValue(type, out beep))
+            {
+                Buzzer.Beep(beep.Frequency, beep.Duration, beep.Pulses, beep.DutyCycle);
+            }
         }
 
         private ExecutionNode BuildRestoreDatabasesNode(DatabaseBackupInfo[] databases, RunContext context)

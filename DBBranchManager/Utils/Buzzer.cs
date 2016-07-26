@@ -3,15 +3,15 @@ using System.Threading;
 
 namespace DBBranchManager.Utils
 {
-    internal class Buzzer
+    internal static class Buzzer
     {
-        public static void Beep(int frequency, int duration, int times, double dutyTime)
+        public static void Beep(int frequency, int duration, int pulses, double dutyCycle)
         {
-            var time = (double)duration / times;
-            var onTime = (int)(time * dutyTime);
+            var time = (double)duration / pulses;
+            var onTime = (int)(time * dutyCycle);
             var offTime = (int)(time - onTime);
 
-            while (times-- > 0)
+            while (pulses-- > 0)
             {
                 Console.Beep(frequency, onTime);
                 Thread.Sleep(offTime);
