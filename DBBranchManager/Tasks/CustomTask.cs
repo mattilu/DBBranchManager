@@ -26,14 +26,20 @@ namespace DBBranchManager.Tasks
             if (!mTaskDefinition.Commands.TryGetRecipe(context.CommandLine.Command, out recipe))
                 return;
 
-            foreach (var taskConfig in recipe)
-            {
-                var task = mManager.CreateTask(taskConfig);
+            context.Log.LogFormat("Running task '{0}'", Name);
 
-                context.Log.LogFormat("Running task '{0}'", task.Name);
-                using (context.IndentScope())
+            using (context.IndentScope())
+            {
+                foreach (var taskConfig in recipe)
                 {
-                    task.Execute(new TaskExecutionContext(context.Context, context.Feature, taskConfig, context.Replacer.WithSubTask(mTaskDefinition, taskConfig)));
+                    var task = mManager.CreateTask(taskConfig);
+                    context.Log.LogFormat("Running sub-task '{0}'", task.Name);
+
+                    using (context.IndentScope())
+                    {
+                        var ctx = new TaskExecutionContext(context.Context, context.Feature, taskConfig, context.Replacer.WithSubTask(mTaskDefinition, taskConfig));
+                        task.Execute(ctx);
+                    }
                 }
             }
         }
