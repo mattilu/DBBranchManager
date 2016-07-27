@@ -54,16 +54,15 @@ namespace DBBranchManager.Tasks
                     var fileInfo = new FileInfo(f.FullPath);
                     var destFileInfo = new FileInfo(destFile);
 
-                    if (destFileInfo.Exists && destFileInfo.LastWriteTimeUtc == fileInfo.LastWriteTimeUtc)
-                    {
-                        if (execute)
-                            context.Log.LogFormat("Skipping {0}", fileName);
-                    }
-                    else
-                    {
-                        t.TransformWithFileSmart(fileInfo.FullName);
+                    t.TransformWithFileSmart(fileInfo.FullName);
 
-                        if (execute)
+                    if (execute)
+                    {
+                        if (destFileInfo.Exists && destFileInfo.LastWriteTimeUtc == fileInfo.LastWriteTimeUtc)
+                        {
+                            context.Log.LogFormat("Skipping {0}", fileName);
+                        }
+                        else
                         {
                             if (destFileInfo.Exists && (destFileInfo.Attributes & FileAttributes.ReadOnly) != 0)
                             {
