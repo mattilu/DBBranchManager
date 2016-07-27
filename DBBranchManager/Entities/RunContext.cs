@@ -20,6 +20,7 @@ namespace DBBranchManager.Entities
         private readonly ReleaseConfig mActiveRelease;
         private readonly EnvironmentConfig mActiveEnvironment;
         private readonly bool mDryRun;
+        private readonly bool mUseCache;
 
         public RunContext(CommandLineArguments commandLine, string projectRoot, UserConfig userConfig, ProjectConfig projectConfig, ReleasesConfig releases, FeatureConfigCollection features, TaskDefinitionConfigCollection tasks, TaskManager taskManager, ILog log)
         {
@@ -46,6 +47,7 @@ namespace DBBranchManager.Entities
             }
 
             mDryRun = commandLine.DryRun;
+            mUseCache = !userConfig.Cache.Disabled;
         }
 
         public CommandLineArguments CommandLine
@@ -106,6 +108,11 @@ namespace DBBranchManager.Entities
         public bool DryRun
         {
             get { return mDryRun; }
+        }
+
+        public bool UseCache
+        {
+            get { return mUseCache; }
         }
     }
 }

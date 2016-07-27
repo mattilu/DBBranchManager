@@ -34,7 +34,7 @@ namespace DBBranchManager.Entities.Config
             get { return mReleases; }
         }
 
-        public IEnumerable<string> Databases
+        public IReadOnlyCollection<string> Databases
         {
             get { return mDatabases; }
         }

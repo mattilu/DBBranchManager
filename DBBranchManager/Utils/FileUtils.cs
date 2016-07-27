@@ -2,11 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
 
 namespace DBBranchManager.Utils
 {
     internal static class FileUtils
     {
+        private const uint LOCKFILE_EXCLUSIVE_LOCK = 0x00000002;
+
         public static IEnumerable<string> EnumerateFiles(string path, Func<string, bool> filter)
         {
             return Directory.EnumerateFiles(path)
@@ -48,6 +52,11 @@ namespace DBBranchManager.Utils
             {
                 fileInfo.Attributes &= ~FileAttributes.ReadOnly;
             }
+        }
+
+        public static IDisposable Lock(FileStream stream)
+        {
+            return new LockFileExWrapper(stream, 0, ulong.MaxValue);
         }
 
         public static IEnumerable<string> ExpandGlob(string glob)
@@ -93,6 +102,23 @@ namespace DBBranchManager.Utils
                 .ToArray());
         }
 
+        [DllImport("Kernel32.dll", SetLastError = true)]
+        private static extern bool LockFileEx(SafeFileHandle handle, uint flags, uint reserved, uint countLow, uint countHigh, ref OVERLAPPED overlapped);
+
+        [DllImport("Kernel32.dll", SetLastError = true)]
+        private static extern bool UnlockFileEx(SafeFileHandle handle, uint reserved, uint countLow, uint countHigh, ref OVERLAPPED overlapped);
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct OVERLAPPED
+        {
+            public uint internalLow;
+            public uint internalHigh;
+            public uint offsetLow;
+            public uint offsetHigh;
+            public IntPtr hEvent;
+        }
+
+
         public class FileData
         {
             private readonly string mFullPath;
@@ -112,6 +138,54 @@ namespace DBBranchManager.Utils
             public string FileName
             {
                 get { return mFileName; }
+            }
+        }
+
+        private class LockFileExWrapper : IDisposable
+        {
+            private readonly FileStream mStream;
+            private readonly ulong mOffset;
+            private readonly ulong mCount;
+
+            public LockFileExWrapper(FileStream stream, ulong offset, ulong count)
+            {
+                mStream = stream;
+                mOffset = offset;
+                mCount = count;
+
+                var countLow = (uint)count;
+                var countHigh = (uint)(count >> 32);
+
+                var overlapped = new OVERLAPPED
+                {
+                    internalLow = 0,
+                    internalHigh = 0,
+                    offsetLow = (uint)offset,
+                    offsetHigh = (uint)(offset >> 32),
+                    hEvent = IntPtr.Zero,
+                };
+
+                if (!LockFileEx(stream.SafeFileHandle, LOCKFILE_EXCLUSIVE_LOCK, 0, countLow, countHigh, ref overlapped))
+                {
+                    throw new IOException();
+                }
+            }
+
+            public void Dispose()
+            {
+                var countLow = (uint)mCount;
+                var countHigh = (uint)(mCount >> 32);
+
+                var overlapped = new OVERLAPPED
+                {
+                    internalLow = 0,
+                    internalHigh = 0,
+                    offsetLow = (uint)mOffset,
+                    offsetHigh = (uint)(mOffset >> 32),
+                    hEvent = IntPtr.Zero,
+                };
+
+                UnlockFileEx(mStream.SafeFileHandle, 0, countLow, countHigh, ref overlapped);
             }
         }
     }

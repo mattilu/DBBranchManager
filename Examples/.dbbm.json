@@ -18,6 +18,11 @@
     "scriptsPath": "E:/ScriptsSII",
     "environment": "dev"
   },
+  "cache": {
+    "rootPath": "D:/dbbmc",
+    "minDeployTime": 10000,
+    "disabled": false
+  },
   "beeps": {
     "start": {
       "frequency": 1000,

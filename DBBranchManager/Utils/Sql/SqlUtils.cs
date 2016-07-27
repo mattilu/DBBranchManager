@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.IO;
+using System.Text;
 using DBBranchManager.Entities.Config;
 
 namespace DBBranchManager.Utils.Sql
@@ -33,6 +34,22 @@ namespace DBBranchManager.Utils.Sql
         public static IProcessExecutionResult Exec(DatabaseConnectionConfig databaseConnection, string dbName, string script, IEnumerable<SqlParameter> parameters)
         {
             return new SqlCommandExecutionResult(databaseConnection, dbName, script, parameters);
+        }
+
+        public static IProcessExecutionResult BackupDatabase(DatabaseConnectionConfig databaseConnection, string dbName, string backupFilePath, bool compress)
+        {
+            var sb = new StringBuilder();
+            sb.AppendFormat("BACKUP DATABASE {0} TO DISK = @backupFile WITH FORMAT, INIT, NAME = @name, SKIP, NOREWIND, NOUNLOAD, STATS = 10",
+                ToBracketedIdentifier(dbName));
+
+            var parameters = new SqlParamCollection();
+            parameters.Add("@backupFile", SqlDbType.NVarChar).Value = backupFilePath;
+            parameters.Add("@name", SqlDbType.NVarChar).Value = dbName;
+
+            if (compress)
+                sb.Append(", COMPRESSION");
+
+            return new SqlCommandExecutionResult(databaseConnection, dbName, sb.ToString(), parameters);
         }
 
         public static IReadOnlyCollection<Tuple<string, string>> GetLogicalAndPhysicalNamesFromBackupFile(DatabaseConnectionConfig databaseConnection, string backupFile)

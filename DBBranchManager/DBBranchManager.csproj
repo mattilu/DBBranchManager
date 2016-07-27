@@ -51,7 +51,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Application.cs" />
+    <Compile Include="Caching\CacheManager.cs" />
     <Compile Include="Caching\HashTransformer.cs" />
+    <Compile Include="Caching\ICacheManager.cs" />
     <Compile Include="Caching\StateHash.cs" />
     <Compile Include="Caching\IStateTransform.cs" />
     <Compile Include="Caching\TaskExecutionTransform.cs" />
@@ -63,6 +65,7 @@
     <Compile Include="Entities\CommandLineArguments.cs" />
     <Compile Include="Entities\Config\BeepConfig.cs" />
     <Compile Include="Entities\Config\BeepsConfig.cs" />
+    <Compile Include="Entities\Config\CacheConfig.cs" />
     <Compile Include="Entities\Config\DatabaseConnectionConfig.cs" />
     <Compile Include="Entities\Config\DatabasesConfig.cs" />
     <Compile Include="Entities\Config\EnvironmentConfig.cs" />
