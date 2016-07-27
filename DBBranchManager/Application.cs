@@ -69,20 +69,21 @@ namespace DBBranchManager
             var hash = StateHash.Empty;
             try
             {
-                ICacheManager cacheManager;
-                if (context.UseCache)
+                var cacheManager = context.UseCache ? (ICacheManager)new CacheManager(context.UserConfig.Cache.RootPath, true, context.Log) : new NullCacheManager();
+
+                StateHash startingHash = null;
+                if (context.CommandLine.Resume)
                 {
-                    cacheManager = new CacheManager(context.UserConfig.Cache.RootPath, true, context.Log);
-                    var cached = root.Calculate(context, hash, cacheManager);
-                    if (cached.Item3)
-                        root = cached.Item1;
-                }
-                else
-                {
-                    cacheManager = new NullCacheManager();
+                    startingHash = LoadResumeHash(context);
                 }
 
-                root.Run(context, hash, cacheManager);
+                var improved = root.Calculate(context, hash, startingHash, cacheManager);
+                if (improved.Item3)
+                    root = improved.Item1;
+
+                root.Run(context, startingHash ?? hash, cacheManager);
+
+                CleanResumeHash(context);
             }
             catch (SoftFailureException ex)
             {
@@ -95,6 +96,39 @@ namespace DBBranchManager
             Beep("success");
             return 0;
         }
+
+        private static StateHash LoadResumeHash(RunContext context)
+        {
+            var file = GetResumeHashFile(context);
+            if (!file.Exists)
+                throw new SoftFailureException("Cannot find resume hash");
+
+            using (var fs = file.OpenRead())
+            using (var r = new StreamReader(fs))
+            {
+                var line = r.ReadLine();
+                try
+                {
+                    return StateHash.FromHexString(line);
+                }
+                catch (Exception ex)
+                {
+                    throw new SoftFailureException("Invalid resume hash format", ex);
+                }
+            }
+        }
+
+        private static void CleanResumeHash(RunContext context)
+        {
+            var file = GetResumeHashFile(context);
+            file.Delete();
+        }
+
+        private static FileInfo GetResumeHashFile(RunContext context)
+        {
+            return new FileInfo(Path.Combine(context.ProjectRoot, ".dbbm.resume"));
+        }
+
 
         private string DiscoverProjectRoot()
         {
@@ -298,11 +332,14 @@ namespace DBBranchManager
                 mChildren.Add(node);
             }
 
-            public Tuple<ExecutionNode, StateHash, bool> Calculate(RunContext context, StateHash hash, ICacheManager cacheManager)
+            public Tuple<ExecutionNode, StateHash, bool> Calculate(RunContext context, StateHash hash, StateHash startingHash, ICacheManager cacheManager)
             {
                 if (mTransform != null)
                 {
                     hash = mTransform.CalculateTransform(hash);
+                    if (hash == startingHash)
+                        return Tuple.Create((ExecutionNode)null, hash, true);
+
                     var backups = GetCachedBackups(cacheManager, hash, context.ProjectConfig.Databases);
                     if (backups != null)
                     {
@@ -315,22 +352,27 @@ namespace DBBranchManager
                 else if (mChildren.Count > 0)
                 {
                     var result = new ExecutionNode(mLogPre, mLogPost);
-                    var usedCache = false;
+                    var changed = false;
 
                     foreach (var child in mChildren)
                     {
-                        var calc = child.Calculate(context, hash, cacheManager);
+                        var calc = child.Calculate(context, hash, startingHash, cacheManager);
                         if (calc.Item3)
                         {
-                            usedCache = true;
+                            changed = true;
                             result.mChildren.Clear();
                         }
 
-                        result.mChildren.Add(calc.Item1);
+                        if (calc.Item1 != null)
+                            result.mChildren.Add(calc.Item1);
+
                         hash = calc.Item2;
                     }
 
-                    return Tuple.Create(result, hash, usedCache);
+                    if (result.mChildren.Count == 0)
+                        result = null;
+
+                    return Tuple.Create(result, hash, changed);
                 }
 
                 return Tuple.Create(this, hash, false);
@@ -347,6 +389,9 @@ namespace DBBranchManager
                     stopWatch.Start();
                     hash = mTransform.RunTransform(hash, context.DryRun, context.Log);
                     stopWatch.Stop();
+
+                    var rhf = GetResumeHashFile(context);
+                    File.WriteAllText(rhf.FullName, hash.ToHexString());
 
                     if (!first && !last && stopWatch.Elapsed >= context.UserConfig.Cache.MinDeployTime)
                     {

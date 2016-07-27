@@ -7,13 +7,15 @@ namespace DBBranchManager.Entities
         private readonly string mCommand;
         private readonly string mRelease;
         private readonly bool mDryRun;
+        private readonly bool mResume;
         private readonly string[] mUnparsed;
 
-        public CommandLineArguments(string command, string release, bool dryRun, string[] unparsed)
+        public CommandLineArguments(string command, string release, bool dryRun, bool resume, string[] unparsed)
         {
             mCommand = command;
             mRelease = release;
             mDryRun = dryRun;
+            mResume = resume;
             mUnparsed = unparsed;
         }
 
@@ -30,6 +32,11 @@ namespace DBBranchManager.Entities
         public bool DryRun
         {
             get { return mDryRun; }
+        }
+
+        public bool Resume
+        {
+            get { return mResume; }
         }
 
         public string[] Unparsed
