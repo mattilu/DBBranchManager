@@ -336,7 +336,7 @@ namespace DBBranchManager
                 return Tuple.Create(this, hash, false);
             }
 
-            public StateHash Run(RunContext context, StateHash hash, ICacheManager cacheManager, bool first = true)
+            public StateHash Run(RunContext context, StateHash hash, ICacheManager cacheManager, bool first = true, bool last = true)
             {
                 if (mLogPre != null)
                     context.Log.Log(mLogPre);
@@ -348,7 +348,7 @@ namespace DBBranchManager
                     hash = mTransform.RunTransform(hash, context.DryRun, context.Log);
                     stopWatch.Stop();
 
-                    if (!first && stopWatch.Elapsed > context.UserConfig.Cache.MinDeployTime)
+                    if (!first && !last && stopWatch.Elapsed >= context.UserConfig.Cache.MinDeployTime)
                     {
                         foreach (var db in context.ProjectConfig.Databases)
                         {
@@ -360,9 +360,10 @@ namespace DBBranchManager
                 {
                     using (context.Log.IndentScope())
                     {
-                        foreach (var child in mChildren)
+                        for (var i = 0; i < mChildren.Count; i++)
                         {
-                            hash = child.Run(context, hash, cacheManager, first);
+                            var child = mChildren[i];
+                            hash = child.Run(context, hash, cacheManager, first, last && i == mChildren.Count - 1);
                             first = false;
                         }
                     }
