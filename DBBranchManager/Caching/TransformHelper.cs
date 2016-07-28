@@ -33,8 +33,8 @@ namespace DBBranchManager.Caching
 
         private class SkippingSubStream : Stream
         {
-            private const int NumChunks = 10240;
-            private const int ChunkSize = 1024;
+            private const int NumChunks = 16;
+            private const int ChunkSize = 655360;
 
             private readonly Stream mUnderlyingStream;
             private readonly long mLength;
