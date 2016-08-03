@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Text;
 using DBBranchManager.Entities.Config;
 using DBBranchManager.Logging;
 using DBBranchManager.Utils;
@@ -86,8 +85,7 @@ namespace DBBranchManager.Caching
             var root = new DirectoryInfo(mPath);
             root.Create();
 
-            using (var fs = new FileStream(Path.Combine(root.FullName, "hit.json"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite))
-            using (FileUtils.Lock(fs))
+            using (var fs = FileUtils.AcquireFile(Path.Combine(root.FullName, "hit.json"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None))
             {
                 JObject jRoot;
 
