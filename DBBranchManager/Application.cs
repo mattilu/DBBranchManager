@@ -79,7 +79,13 @@ namespace DBBranchManager
 
                 var improved = root.Calculate(context, hash, startingHash, cacheManager);
                 if (improved.Item3)
+                {
                     root = improved.Item1;
+                    if (improved.Item4 != null)
+                    {
+                        cacheManager.UpdateHits(context.ProjectConfig.Databases.Select(x => Tuple.Create(x, improved.Item4)));
+                    }
+                }
 
                 root.Run(context, startingHash ?? hash, cacheManager);
 
@@ -290,13 +296,17 @@ namespace DBBranchManager
 
         private class NullCacheManager : ICacheManager
         {
-            public bool TryGet(string dbName, StateHash state, out string path)
+            public bool TryGet(string dbName, StateHash hash, bool updateHit, out string path)
             {
                 path = null;
                 return false;
             }
 
-            public void Add(DatabaseConnectionConfig dbConfig, string dbName, StateHash state)
+            public void Add(DatabaseConnectionConfig dbConfig, string dbName, StateHash hash)
+            {
+            }
+
+            public void UpdateHits(IEnumerable<Tuple<string, StateHash>> keys)
             {
             }
         }
@@ -332,13 +342,13 @@ namespace DBBranchManager
                 mChildren.Add(node);
             }
 
-            public Tuple<ExecutionNode, StateHash, bool> Calculate(RunContext context, StateHash hash, StateHash startingHash, ICacheManager cacheManager)
+            public Tuple<ExecutionNode, StateHash, bool, StateHash> Calculate(RunContext context, StateHash hash, StateHash startingHash, ICacheManager cacheManager)
             {
                 if (mTransform != null)
                 {
                     hash = mTransform.CalculateTransform(hash);
                     if (hash == startingHash)
-                        return Tuple.Create((ExecutionNode)null, hash, true);
+                        return Tuple.Create((ExecutionNode)null, hash, true, (StateHash)null);
 
                     var backups = GetCachedBackups(cacheManager, hash, context.ProjectConfig.Databases);
                     if (backups != null)
@@ -346,13 +356,14 @@ namespace DBBranchManager
                         var node = new ExecutionNode("Restoring state from cache...", "Cache restored");
                         node.AddChild(new ExecutionNode(new RestoreDatabasesTransform(context.UserConfig.Databases.Connection, backups, hash)));
 
-                        return Tuple.Create(node, hash, true);
+                        return Tuple.Create(node, hash, true, hash);
                     }
                 }
                 else if (mChildren.Count > 0)
                 {
                     var result = new ExecutionNode(mLogPre, mLogPost);
                     var changed = false;
+                    StateHash cacheHash = null;
 
                     foreach (var child in mChildren)
                     {
@@ -367,15 +378,17 @@ namespace DBBranchManager
                             result.mChildren.Add(calc.Item1);
 
                         hash = calc.Item2;
+                        if (calc.Item4 != null)
+                            cacheHash = calc.Item4;
                     }
 
                     if (result.mChildren.Count == 0)
                         result = null;
 
-                    return Tuple.Create(result, hash, changed);
+                    return Tuple.Create(result, hash, changed, cacheHash);
                 }
 
-                return Tuple.Create(this, hash, false);
+                return Tuple.Create(this, hash, false, (StateHash)null);
             }
 
             public StateHash Run(RunContext context, StateHash hash, ICacheManager cacheManager, bool first = true, bool last = true)
@@ -420,7 +433,7 @@ namespace DBBranchManager
                 return hash;
             }
 
-            private DatabaseBackupInfo[] GetCachedBackups(ICacheManager cacheManager, StateHash hash, IReadOnlyCollection<string> dbs)
+            private static DatabaseBackupInfo[] GetCachedBackups(ICacheManager cacheManager, StateHash hash, IReadOnlyCollection<string> dbs)
             {
                 var result = new DatabaseBackupInfo[dbs.Count];
                 var i = 0;
@@ -428,7 +441,7 @@ namespace DBBranchManager
                 foreach (var db in dbs)
                 {
                     string path;
-                    if (!cacheManager.TryGet(db, hash, out path))
+                    if (!cacheManager.TryGet(db, hash, false, out path))
                         return null;
 
                     result[i++] = new DatabaseBackupInfo(db, path);

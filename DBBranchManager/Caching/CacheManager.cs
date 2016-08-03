@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using DBBranchManager.Entities.Config;
 using DBBranchManager.Logging;
 using DBBranchManager.Utils;
@@ -22,7 +24,7 @@ namespace DBBranchManager.Caching
             mLog = log;
         }
 
-        public bool TryGet(string dbName, StateHash state, out string path)
+        public bool TryGet(string dbName, StateHash hash, bool updateHit, out string path)
         {
             path = null;
 
@@ -34,23 +36,25 @@ namespace DBBranchManager.Caching
             if (!db.Exists)
                 return false;
 
-            var file = new FileInfo(Path.Combine(db.FullName, GetFileName(state)));
+            var file = new FileInfo(Path.Combine(db.FullName, GetFileName(hash)));
             if (!file.Exists)
                 return false;
 
-            UpdateLastHit(dbName, state);
+            if (updateHit)
+                UpdateHit(dbName, hash);
+
             path = file.FullName;
 
             return true;
         }
 
-        public void Add(DatabaseConnectionConfig dbConfig, string dbName, StateHash state)
+        public void Add(DatabaseConnectionConfig dbConfig, string dbName, StateHash hash)
         {
             var root = GetCachesDir();
             root.Create();
 
             var db = root.CreateSubdirectory(dbName);
-            var file = Path.Combine(db.FullName, GetFileName(state));
+            var file = Path.Combine(db.FullName, GetFileName(hash));
 
             if (File.Exists(file))
                 return;
@@ -76,11 +80,11 @@ namespace DBBranchManager.Caching
             }
             else
             {
-                UpdateLastHit(dbName, state);
+                UpdateHit(dbName, hash);
             }
         }
 
-        private void UpdateLastHit(string dbName, StateHash state)
+        public void UpdateHits(IEnumerable<Tuple<string, StateHash>> keys)
         {
             var root = new DirectoryInfo(mPath);
             root.Create();
@@ -101,10 +105,13 @@ namespace DBBranchManager.Caching
                     jRoot = JObject.Load(jReader);
                 }
 
-                var db = jRoot[dbName] ?? new JObject();
-                db[GetFileName(state)] = DateTime.UtcNow.Ticks;
+                foreach (var key in keys)
+                {
+                    var db = jRoot[key.Item1] ?? new JObject();
+                    db[GetFileName(key.Item2)] = DateTime.UtcNow.Ticks;
 
-                jRoot[dbName] = db;
+                    jRoot[key.Item1] = db;
+                }
 
                 // Same as before
                 fs.Seek(0, SeekOrigin.Begin);
@@ -123,10 +130,15 @@ namespace DBBranchManager.Caching
             return new DirectoryInfo(Path.Combine(mPath, "caches"));
         }
 
-
-        private static string GetFileName(StateHash state)
+        private void UpdateHit(string dbName, StateHash hash)
         {
-            return state.ToHexString();
+            UpdateHits(Enumerable.Repeat(Tuple.Create(dbName, hash), 1));
+        }
+
+
+        private static string GetFileName(StateHash hash)
+        {
+            return hash.ToHexString();
         }
     }
 }
