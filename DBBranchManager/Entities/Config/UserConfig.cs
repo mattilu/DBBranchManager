@@ -85,6 +85,7 @@ namespace DBBranchManager.Entities.Config
                         FileUtils.ToLocalPath(jCache["rootPath"].Value<string>()),
                         TimeSpan.FromMilliseconds(jCache["minDeployTime"].Value<int>()),
                         NumericUtils.TryParseByteSize((string)jCache["maxCacheSize"]) ?? -1,
+                        (bool?)jCache["autoGC"] ?? true,
                         (bool?)jCache["disabled"] ?? false),
                     new BeepsConfig(jBeeps.OfType<JProperty>()
                         .Select(x => new KeyValuePair<string, BeepConfig>(x.Name, new BeepConfig(

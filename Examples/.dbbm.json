@@ -22,6 +22,7 @@
     "rootPath": "D:/dbbmc",
     "minDeployTime": 10000,
     "maxCacheSize": "10G",
+    "autoGC": true,
     "disabled": false
   },
   "beeps": {

@@ -72,7 +72,7 @@ namespace DBBranchManager
             var hash = StateHash.Empty;
             try
             {
-                var cacheManager = context.UseCache ? (ICacheManager)new CacheManager(context.UserConfig.Cache.RootPath, true, mUserConfig.Cache.MaxCacheSize, context.Log) : new NullCacheManager();
+                var cacheManager = context.UseCache ? (ICacheManager)new CacheManager(context.UserConfig.Cache.RootPath, true, mUserConfig.Cache.MaxCacheSize, mUserConfig.Cache.AutoGC, context.Log) : new NullCacheManager();
 
                 StateHash startingHash = null;
                 if (context.CommandLine.Resume)
@@ -111,8 +111,8 @@ namespace DBBranchManager
             if (mUserConfig.Cache.Disabled)
                 return 0;
 
-            var cacheManager = new CacheManager(mUserConfig.Cache.RootPath, true, mUserConfig.Cache.MaxCacheSize, new ConsoleLog());
-            cacheManager.GarbageCollect();
+            var cacheManager = new CacheManager(mUserConfig.Cache.RootPath, true, mUserConfig.Cache.MaxCacheSize, false, new ConsoleLog());
+            cacheManager.GarbageCollect(false);
 
             return 0;
         }
@@ -324,7 +324,7 @@ namespace DBBranchManager
             {
             }
 
-            public void GarbageCollect()
+            public void GarbageCollect(bool silent)
             {
             }
         }

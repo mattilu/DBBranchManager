@@ -16,13 +16,15 @@ namespace DBBranchManager.Caching
         private readonly string mPath;
         private readonly bool mAllowCompression;
         private readonly long mMaxCacheSize;
+        private readonly bool mAutoGC;
         private readonly ILog mLog;
 
-        public CacheManager(string path, bool allowCompression, long maxCacheSize, ILog log)
+        public CacheManager(string path, bool allowCompression, long maxCacheSize, bool autoGC, ILog log)
         {
             mPath = path;
             mAllowCompression = allowCompression;
             mMaxCacheSize = maxCacheSize;
+            mAutoGC = autoGC;
             mLog = log;
         }
 
@@ -60,6 +62,9 @@ namespace DBBranchManager.Caching
 
             if (File.Exists(file))
                 return;
+
+            if (mAutoGC)
+                GarbageCollect(true);
 
             int exitCode;
             mLog.LogFormat("Caching {0} to {1}", dbName, file);
@@ -107,9 +112,10 @@ namespace DBBranchManager.Caching
             }
         }
 
-        public void GarbageCollect()
+        public void GarbageCollect(bool silent)
         {
-            mLog.Log("Running Cache Garbage Collection");
+            if (!silent)
+                mLog.Log("Running Cache Garbage Collection");
 
             using (var fs = AcquirerHitTableFile())
             {
@@ -122,13 +128,15 @@ namespace DBBranchManager.Caching
                 {
                     if (stat.File != null && (stat.Hash == null || stat.LastHit == null))
                     {
-                        mLog.LogFormat("Deleting {0}", stat.File);
+                        if (!silent)
+                            mLog.LogFormat("Deleting {0}", stat.File);
                         File.Delete(stat.File);
                     }
                     else if (stat.File == null && stat.Hash != null)
                     {
                         var hex = stat.Hash.ToHexString();
-                        mLog.LogFormat("Forgetting {0} -> {1}", stat.Database, hex);
+                        if (!silent)
+                            mLog.LogFormat("Forgetting {0} -> {1}", stat.Database, hex);
                         ((JObject)hitTable[stat.Database]).Remove(hex);
                     }
                     else if (stat.File != null && stat.Hash != null && stat.LastHit != null)
@@ -148,7 +156,8 @@ namespace DBBranchManager.Caching
                     var item = it.Current;
                     var stat = item.Item1;
 
-                    mLog.LogFormat("Erasing {0}", stat.File);
+                    if (!silent)
+                        mLog.LogFormat("Erasing {0}", stat.File);
                     File.Delete(stat.File);
                     ((JObject)hitTable[stat.Database]).Remove(stat.Hash.ToHexString());
 

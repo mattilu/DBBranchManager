@@ -29,6 +29,6 @@ namespace DBBranchManager.Caching
         /// <summary>
         /// Frees space used by outdated cache.
         /// </summary>
-        void GarbageCollect();
+        void GarbageCollect(bool silent);
     }
 }
