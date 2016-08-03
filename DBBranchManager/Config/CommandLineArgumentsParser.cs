@@ -21,6 +21,7 @@ namespace DBBranchManager.Config
             var command = "help";
             string release = null;
             var dryRun = false;
+            var resume = false;
 
             mIndex = 0;
             while (mIndex < mArgs.Length)
@@ -33,6 +34,10 @@ namespace DBBranchManager.Config
                 else if (TryGetFlag("-n", "--dry-run"))
                 {
                     dryRun = true;
+                }
+                else if (TryGetFlag("-s", "--resume"))
+                {
+                    resume = true;
                 }
                 else if (!mArgs[mIndex].StartsWith("-"))
                 {
@@ -50,7 +55,7 @@ namespace DBBranchManager.Config
                 ++mIndex;
             }
 
-            return new CommandLineArguments(command, release, dryRun, unparsed.ToArray());
+            return new CommandLineArguments(command, release, dryRun, resume, unparsed.ToArray());
         }
 
         private bool TryGetFlag(string shortName, string longName)

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
+using DBBranchManager.Caching;
 using DBBranchManager.Exceptions;
 using DBBranchManager.Utils;
 using DBBranchManager.Utils.Sql;
@@ -18,7 +19,17 @@ namespace DBBranchManager.Tasks
             get { return TaskName; }
         }
 
-        public void Execute(TaskExecutionContext context)
+        public void Simulate(TaskExecutionContext context, ref StateHash hash)
+        {
+            hash = ExecuteCore(context, hash, false);
+        }
+
+        public void Execute(TaskExecutionContext context, ref StateHash hash)
+        {
+            hash = ExecuteCore(context, hash, true);
+        }
+
+        private StateHash ExecuteCore(TaskExecutionContext context, StateHash hash, bool notSimulate)
         {
             var path = FileUtils.ToLocalPath(context.GetParameter("path"));
             if (!Path.IsPathRooted(path))
@@ -31,60 +42,75 @@ namespace DBBranchManager.Tasks
             var postTemplate = context.GetParameter("templates.post");
 
             if (!Directory.Exists(path))
-                return;
+                return hash;
 
-            var script = GenerateScript(context, path, regex, preTemplate, postTemplate, !execute || context.DryRun || output != null);
+            var script = GenerateScript(context, path, regex, preTemplate, postTemplate, notSimulate && (!execute || context.DryRun || output != null), ref hash);
 
-            if (output != null)
+            if (notSimulate)
             {
-                context.Log.Log("Generating {0}");
-
-                if (!context.DryRun)
-                    File.WriteAllText(output, script);
-            }
-
-            if (execute && !context.DryRun)
-            {
-                using (var sqlcmdResult = SqlUtils.SqlCmdExec(context.Context.UserConfig.Databases.Connection, script))
+                if (output != null)
                 {
-                    foreach (var processOutputLine in sqlcmdResult.GetOutput())
-                    {
-                        if (processOutputLine.OutputType == ProcessOutputLine.OutputTypeEnum.StandardError)
-                            context.Log.Log(processOutputLine.Line);
-                    }
+                    context.Log.Log("Generating {0}");
 
-                    if (sqlcmdResult.ExitCode != 0)
+                    if (!context.DryRun)
+                        File.WriteAllText(output, script);
+                }
+
+                if (execute && !context.DryRun)
+                {
+                    using (var sqlcmdResult = SqlUtils.SqlCmdExec(context.Context.UserConfig.Databases.Connection, script))
                     {
-                        throw new SoftFailureException("One or more errors occurred during scripts execution");
+                        foreach (var processOutputLine in sqlcmdResult.GetOutput())
+                        {
+                            if (processOutputLine.OutputType == ProcessOutputLine.OutputTypeEnum.StandardError)
+                                context.Log.Log(processOutputLine.Line);
+                        }
+
+                        if (sqlcmdResult.ExitCode != 0)
+                        {
+                            throw new SoftFailureException("One or more errors occurred during scripts execution");
+                        }
                     }
                 }
             }
+
+            return hash;
         }
 
-        private string GenerateScript(TaskExecutionContext context, string path, Regex regex, string preTemplate, string postTemplate, bool log)
+        private string GenerateScript(TaskExecutionContext context, string path, Regex regex, string preTemplate, string postTemplate, bool log, ref StateHash hash)
         {
-            var sb = new StringBuilder();
-            sb.AppendFormat("{0}\n", preTemplate);
-
-            var filter = BuildFilter(context, regex);
-            foreach (var file in FileUtils.EnumerateFiles(path, regex.IsMatch))
+            using (var t = new HashTransformer(hash))
             {
-                if (filter(file))
+                var sb = new StringBuilder();
+                sb.AppendFormat("{0}\n", preTemplate);
+
+                var filter = BuildFilter(context, regex);
+                foreach (var file in FileUtils.EnumerateFiles2(path, regex.IsMatch))
                 {
-                    if (log)
-                        context.Log.LogFormat("Adding {0}", file);
-                    sb.AppendFormat("{0}\n", context.GetParameter("templates.item", new Dictionary<string, string> { { "file", file } }));
+                    if (filter(file.FileName))
+                    {
+                        if (log)
+                            context.Log.LogFormat("Adding {0}", file);
+                        sb.AppendFormat("{0}\n", context.GetParameter("templates.item", new Dictionary<string, string> { { "file", file.FileName } }));
+
+                        t.TransformWithFileSmart(file.FullPath);
+                    }
+                    else
+                    {
+                        if (log)
+                            context.Log.LogFormat("Skipping {0}", file);
+                    }
                 }
-                else
-                {
-                    if (log)
-                        context.Log.LogFormat("Skipping {0}", file);
-                }
+
+                sb.AppendFormat("{0}\n", postTemplate);
+
+                var script = sb.ToString();
+
+                t.Transform(script);
+                hash = t.GetResult();
+
+                return script;
             }
-
-            sb.AppendFormat("{0}\n", postTemplate);
-
-            return sb.ToString();
         }
 
         private static Func<string, bool> BuildFilter(TaskExecutionContext context, Regex regex)

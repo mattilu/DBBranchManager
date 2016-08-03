@@ -1,3 +1,4 @@
+using DBBranchManager.Caching;
 using DBBranchManager.Entities.Config;
 using DBBranchManager.Utils;
 
@@ -20,28 +21,46 @@ namespace DBBranchManager.Tasks
             get { return mTaskDefinition.Name; }
         }
 
-        public void Execute(TaskExecutionContext context)
+        public void Simulate(TaskExecutionContext context, ref StateHash hash)
+        {
+            hash = ExecuteCore(context, hash, false);
+        }
+
+        public void Execute(TaskExecutionContext context, ref StateHash hash)
+        {
+            hash = ExecuteCore(context, hash, true);
+        }
+
+        private StateHash ExecuteCore(TaskExecutionContext context, StateHash hash, bool execute)
         {
             RecipeConfig recipe;
             if (!mTaskDefinition.Commands.TryGetRecipe(context.CommandLine.Command, out recipe))
-                return;
+                return hash;
 
-            context.Log.LogFormat("Running task '{0}'", Name);
+            if (execute)
+                context.Log.LogFormat("Running task '{0}'", Name);
 
             using (context.IndentScope())
             {
                 foreach (var taskConfig in recipe)
                 {
                     var task = mManager.CreateTask(taskConfig);
-                    context.Log.LogFormat("Running sub-task '{0}'", task.Name);
+
+                    if (execute)
+                        context.Log.LogFormat("Running sub-task '{0}'", task.Name);
 
                     using (context.IndentScope())
                     {
                         var ctx = new TaskExecutionContext(context.Context, context.Feature, taskConfig, context.Replacer.WithSubTask(mTaskDefinition, taskConfig));
-                        task.Execute(ctx);
+                        if (execute)
+                            task.Execute(ctx, ref hash);
+                        else
+                            task.Simulate(ctx, ref hash);
                     }
                 }
             }
+
+            return hash;
         }
     }
 }

@@ -16,12 +16,13 @@ namespace DBBranchManager.Caching
 
         public StateHash CalculateTransform(StateHash currentHash)
         {
+            mTask.Simulate(mContext, ref currentHash);
             return currentHash;
         }
 
         public StateHash RunTransform(StateHash currentHash, bool dryRun, ILog log)
         {
-            mTask.Execute(mContext);
+            mTask.Execute(mContext, ref currentHash);
             return currentHash;
         }
     }

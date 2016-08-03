@@ -14,15 +14,20 @@ namespace DBBranchManager.Caching
     {
         private readonly DatabaseConnectionConfig mDatabaseConnection;
         private readonly DatabaseBackupInfo[] mDatabases;
+        private readonly StateHash mKnownState;
 
-        public RestoreDatabasesTransform(DatabaseConnectionConfig databaseConnection, DatabaseBackupInfo[] databases)
+        public RestoreDatabasesTransform(DatabaseConnectionConfig databaseConnection, DatabaseBackupInfo[] databases, StateHash knownState = null)
         {
             mDatabaseConnection = databaseConnection;
             mDatabases = databases;
+            mKnownState = knownState;
         }
 
         public StateHash CalculateTransform(StateHash currentHash)
         {
+            if (mKnownState != null)
+                return mKnownState;
+
             using (var transform = new HashTransformer(currentHash))
             {
                 foreach (var db in mDatabases.OrderBy(x => x.Name))
@@ -36,6 +41,16 @@ namespace DBBranchManager.Caching
 
         public StateHash RunTransform(StateHash currentHash, bool dryRun, ILog log)
         {
+            if (mKnownState != null)
+            {
+                foreach (var db in mDatabases.OrderBy(x => x.Name))
+                {
+                    RestoreDatabase(db, dryRun, log);
+                }
+
+                return mKnownState;
+            }
+
             using (var transform = new HashTransformer(currentHash))
             {
                 foreach (var db in mDatabases.OrderBy(x => x.Name))

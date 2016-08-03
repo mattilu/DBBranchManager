@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
+using System.Threading;
+using Microsoft.Win32.SafeHandles;
 
 namespace DBBranchManager.Utils
 {
@@ -36,6 +39,26 @@ namespace DBBranchManager.Utils
             var dir = new DirectoryInfo(directory);
             RemoveReadOnlyRecursive(dir);
             dir.Delete(true);
+        }
+
+        public static FileStream AcquireFile(string path, FileMode mode, FileAccess access, FileShare share, int sleepTime = 250)
+        {
+            while (true)
+            {
+                try
+                {
+                    var fs = new FileStream(path, mode, access, share);
+
+                    fs.ReadByte();
+                    fs.Seek(0, SeekOrigin.Begin);
+
+                    return fs;
+                }
+                catch (IOException)
+                {
+                    Thread.Sleep(sleepTime);
+                }
+            }
         }
 
         private static void RemoveReadOnlyRecursive(DirectoryInfo dir)
@@ -92,6 +115,23 @@ namespace DBBranchManager.Utils
                 .Select(ToLocalPath)
                 .ToArray());
         }
+
+        [DllImport("Kernel32.dll", SetLastError = true)]
+        private static extern bool LockFileEx(SafeFileHandle handle, uint flags, uint reserved, uint countLow, uint countHigh, ref OVERLAPPED overlapped);
+
+        [DllImport("Kernel32.dll", SetLastError = true)]
+        private static extern bool UnlockFileEx(SafeFileHandle handle, uint reserved, uint countLow, uint countHigh, ref OVERLAPPED overlapped);
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct OVERLAPPED
+        {
+            public uint internalLow;
+            public uint internalHigh;
+            public uint offsetLow;
+            public uint offsetHigh;
+            public IntPtr hEvent;
+        }
+
 
         public class FileData
         {

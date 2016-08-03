@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -13,13 +14,15 @@ namespace DBBranchManager.Entities.Config
         private readonly string mActiveRelease;
         private readonly DatabasesConfig mDatabases;
         private readonly EnvironmentVariablesConfig mEnvironmentVariables;
+        private readonly CacheConfig mCache;
         private readonly BeepsConfig mBeeps;
 
-        public UserConfig(string activeRelease, DatabasesConfig databases, EnvironmentVariablesConfig environmentVariables, BeepsConfig beeps)
+        public UserConfig(string activeRelease, DatabasesConfig databases, EnvironmentVariablesConfig environmentVariables, CacheConfig cache, BeepsConfig beeps)
         {
             mActiveRelease = activeRelease;
             mDatabases = databases;
             mEnvironmentVariables = environmentVariables;
+            mCache = cache;
             mBeeps = beeps;
         }
 
@@ -39,6 +42,11 @@ namespace DBBranchManager.Entities.Config
             get { return mEnvironmentVariables; }
         }
 
+        public CacheConfig Cache
+        {
+            get { return mCache; }
+        }
+
         public BeepsConfig Beeps
         {
             get { return mBeeps; }
@@ -56,6 +64,7 @@ namespace DBBranchManager.Entities.Config
                 var jConnection = jDatabases["connection"];
                 var jBackups = jDatabases["backups"];
                 var jEnvVariables = jConfig["envVariables"];
+                var jCache = jConfig["cache"];
                 var jBeeps = jConfig["beeps"];
 
                 return new UserConfig(
@@ -72,6 +81,12 @@ namespace DBBranchManager.Entities.Config
                             new Regex(jBackups["pattern"].Value<string>()))),
                     new EnvironmentVariablesConfig(jEnvVariables.OfType<JProperty>()
                         .Select(x => new KeyValuePair<string, string>(x.Name, x.Value.Value<string>()))),
+                    new CacheConfig(
+                        FileUtils.ToLocalPath(jCache["rootPath"].Value<string>()),
+                        TimeSpan.FromMilliseconds(jCache["minDeployTime"].Value<int>()),
+                        NumericUtils.TryParseByteSize((string)jCache["maxCacheSize"]) ?? -1,
+                        (bool?)jCache["autoGC"] ?? true,
+                        (bool?)jCache["disabled"] ?? false),
                     new BeepsConfig(jBeeps.OfType<JProperty>()
                         .Select(x => new KeyValuePair<string, BeepConfig>(x.Name, new BeepConfig(
                             (int?)x.Value["frequency"] ?? 800,

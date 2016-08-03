@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using DBBranchManager.Caching;
@@ -39,6 +40,9 @@ namespace DBBranchManager
                 case CommandConstants.Deploy:
                     return RunDeploy();
 
+                case CommandConstants.GarbageCollect:
+                    return RunGarbageCollect();
+
                 default:
                     throw new SoftFailureException(string.Format("Unknown command: {0}", mCommandLine.Command));
             }
@@ -68,7 +72,27 @@ namespace DBBranchManager
             var hash = StateHash.Empty;
             try
             {
-                root.Run(context, hash);
+                var cacheManager = context.UseCache ? (ICacheManager)new CacheManager(context.UserConfig.Cache.RootPath, true, mUserConfig.Cache.MaxCacheSize, mUserConfig.Cache.AutoGC, context.Log) : new NullCacheManager();
+
+                StateHash startingHash = null;
+                if (context.CommandLine.Resume)
+                {
+                    startingHash = LoadResumeHash(context);
+                }
+
+                var improved = root.Calculate(context, hash, startingHash, cacheManager);
+                if (improved.Item3)
+                {
+                    root = improved.Item1;
+                    if (improved.Item4 != null)
+                    {
+                        cacheManager.UpdateHits(context.ProjectConfig.Databases.Select(x => Tuple.Create(x, improved.Item4)));
+                    }
+                }
+
+                root.Run(context, startingHash ?? hash, cacheManager);
+
+                CleanResumeHash(context);
             }
             catch (SoftFailureException ex)
             {
@@ -81,6 +105,50 @@ namespace DBBranchManager
             Beep("success");
             return 0;
         }
+
+        private int RunGarbageCollect()
+        {
+            if (mUserConfig.Cache.Disabled)
+                return 0;
+
+            var cacheManager = new CacheManager(mUserConfig.Cache.RootPath, true, mUserConfig.Cache.MaxCacheSize, false, new ConsoleLog());
+            cacheManager.GarbageCollect(false);
+
+            return 0;
+        }
+
+        private static StateHash LoadResumeHash(RunContext context)
+        {
+            var file = GetResumeHashFile(context);
+            if (!file.Exists)
+                throw new SoftFailureException("Cannot find resume hash");
+
+            using (var fs = file.OpenRead())
+            using (var r = new StreamReader(fs))
+            {
+                var line = r.ReadLine();
+                try
+                {
+                    return StateHash.FromHexString(line);
+                }
+                catch (Exception ex)
+                {
+                    throw new SoftFailureException("Invalid resume hash format", ex);
+                }
+            }
+        }
+
+        private static void CleanResumeHash(RunContext context)
+        {
+            var file = GetResumeHashFile(context);
+            file.Delete();
+        }
+
+        private static FileInfo GetResumeHashFile(RunContext context)
+        {
+            return new FileInfo(Path.Combine(context.ProjectRoot, ".dbbm.resume"));
+        }
+
 
         private string DiscoverProjectRoot()
         {
@@ -108,7 +176,7 @@ namespace DBBranchManager
         private ExecutionNode BuildRestoreDatabasesNode(DatabaseBackupInfo[] databases, RunContext context)
         {
             var node = new ExecutionNode("Restoring databases...", "All databases restored!");
-            node.AddChild(new ExecutionNode(new RestoreDatabasesTransform(mUserConfig.Databases.Connection, databases)));
+            node.AddChild(new ExecutionNode(new RestoreDatabasesTransform(context.UserConfig.Databases.Connection, databases)));
             return node;
         }
 
@@ -240,6 +308,27 @@ namespace DBBranchManager
             return new RunContext(mCommandLine, mProjectRoot, mUserConfig, mProjectConfig, releases, features, tasks, new TaskManager(tasks), new ConsoleLog());
         }
 
+        private class NullCacheManager : ICacheManager
+        {
+            public bool TryGet(string dbName, StateHash hash, bool updateHit, out string path)
+            {
+                path = null;
+                return false;
+            }
+
+            public void Add(DatabaseConnectionConfig dbConfig, string dbName, StateHash hash)
+            {
+            }
+
+            public void UpdateHits(IEnumerable<Tuple<string, StateHash>> keys)
+            {
+            }
+
+            public void GarbageCollect(bool silent)
+            {
+            }
+        }
+
         private class ExecutionNode
         {
             private readonly string mLogPre;
@@ -271,22 +360,87 @@ namespace DBBranchManager
                 mChildren.Add(node);
             }
 
-            public StateHash Run(RunContext context, StateHash hash)
+            public Tuple<ExecutionNode, StateHash, bool, StateHash> Calculate(RunContext context, StateHash hash, StateHash startingHash, ICacheManager cacheManager)
+            {
+                if (mTransform != null)
+                {
+                    hash = mTransform.CalculateTransform(hash);
+                    if (hash == startingHash)
+                        return Tuple.Create((ExecutionNode)null, hash, true, (StateHash)null);
+
+                    var backups = GetCachedBackups(cacheManager, hash, context.ProjectConfig.Databases);
+                    if (backups != null)
+                    {
+                        var node = new ExecutionNode("Restoring state from cache...", "Cache restored");
+                        node.AddChild(new ExecutionNode(new RestoreDatabasesTransform(context.UserConfig.Databases.Connection, backups, hash)));
+
+                        return Tuple.Create(node, hash, true, hash);
+                    }
+                }
+                else if (mChildren.Count > 0)
+                {
+                    var result = new ExecutionNode(mLogPre, mLogPost);
+                    var changed = false;
+                    StateHash cacheHash = null;
+
+                    foreach (var child in mChildren)
+                    {
+                        var calc = child.Calculate(context, hash, startingHash, cacheManager);
+                        if (calc.Item3)
+                        {
+                            changed = true;
+                            result.mChildren.Clear();
+                        }
+
+                        if (calc.Item1 != null)
+                            result.mChildren.Add(calc.Item1);
+
+                        hash = calc.Item2;
+                        if (calc.Item4 != null)
+                            cacheHash = calc.Item4;
+                    }
+
+                    if (result.mChildren.Count == 0)
+                        result = null;
+
+                    return Tuple.Create(result, hash, changed, cacheHash);
+                }
+
+                return Tuple.Create(this, hash, false, (StateHash)null);
+            }
+
+            public StateHash Run(RunContext context, StateHash hash, ICacheManager cacheManager, bool first = true, bool last = true)
             {
                 if (mLogPre != null)
                     context.Log.Log(mLogPre);
 
                 if (mTransform != null)
                 {
+                    var stopWatch = new Stopwatch();
+                    stopWatch.Start();
                     hash = mTransform.RunTransform(hash, context.DryRun, context.Log);
+                    stopWatch.Stop();
+
+                    var rhf = GetResumeHashFile(context);
+                    File.WriteAllText(rhf.FullName, hash.ToHexString());
+
+                    if (!first && !last && stopWatch.Elapsed >= context.UserConfig.Cache.MinDeployTime)
+                    {
+                        foreach (var db in context.ProjectConfig.Databases)
+                        {
+                            cacheManager.Add(context.UserConfig.Databases.Connection, db, hash);
+                        }
+                    }
                 }
                 else if (mChildren.Count > 0)
                 {
                     using (context.Log.IndentScope())
                     {
-                        foreach (var child in mChildren)
+                        for (var i = 0; i < mChildren.Count; i++)
                         {
-                            hash = child.Run(context, hash);
+                            var child = mChildren[i];
+                            hash = child.Run(context, hash, cacheManager, first, last && i == mChildren.Count - 1);
+                            first = false;
                         }
                     }
                 }
@@ -295,6 +449,23 @@ namespace DBBranchManager
                     context.Log.Log(mLogPost);
 
                 return hash;
+            }
+
+            private static DatabaseBackupInfo[] GetCachedBackups(ICacheManager cacheManager, StateHash hash, IReadOnlyCollection<string> dbs)
+            {
+                var result = new DatabaseBackupInfo[dbs.Count];
+                var i = 0;
+
+                foreach (var db in dbs)
+                {
+                    string path;
+                    if (!cacheManager.TryGet(db, hash, false, out path))
+                        return null;
+
+                    result[i++] = new DatabaseBackupInfo(db, path);
+                }
+
+                return result;
             }
         }
 
