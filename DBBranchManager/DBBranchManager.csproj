@@ -102,6 +102,7 @@
     <Compile Include="Utils\FileUtils.cs" />
     <Compile Include="Utils\MiscExtensions.cs" />
     <Compile Include="Utils\NaturalSortComparer.cs" />
+    <Compile Include="Utils\NumericUtils.cs" />
     <Compile Include="Utils\ProcessUtils.cs" />
     <Compile Include="Utils\Sql\SqlCommandFactory.cs" />
     <Compile Include="Utils\Sql\SqlMessageEventArgs.cs" />

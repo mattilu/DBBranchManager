@@ -25,5 +25,10 @@ namespace DBBranchManager.Caching
         /// Updates the cache table for the given databases and hashes.
         /// </summary>
         void UpdateHits(IEnumerable<Tuple<string, StateHash>> keys);
+
+        /// <summary>
+        /// Frees space used by outdated cache.
+        /// </summary>
+        void GarbageCollect();
     }
 }

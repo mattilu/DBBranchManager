@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security;
 using DBBranchManager.Logging;
@@ -30,6 +32,11 @@ namespace DBBranchManager.Utils
                 secure.AppendChar(c);
             }
             return secure;
+        }
+
+        public static HashSet<TResult> ToHashSet<T, TResult>(this IEnumerable<T> enumerable, Func<T, TResult> keySelector)
+        {
+            return new HashSet<TResult>(enumerable.Select(keySelector));
         }
 
         public static IDisposable IndentScope(this TaskExecutionContext context)

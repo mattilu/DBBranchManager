@@ -40,6 +40,9 @@ namespace DBBranchManager
                 case CommandConstants.Deploy:
                     return RunDeploy();
 
+                case CommandConstants.GarbageCollect:
+                    return RunGarbageCollect();
+
                 default:
                     throw new SoftFailureException(string.Format("Unknown command: {0}", mCommandLine.Command));
             }
@@ -69,7 +72,7 @@ namespace DBBranchManager
             var hash = StateHash.Empty;
             try
             {
-                var cacheManager = context.UseCache ? (ICacheManager)new CacheManager(context.UserConfig.Cache.RootPath, true, context.Log) : new NullCacheManager();
+                var cacheManager = context.UseCache ? (ICacheManager)new CacheManager(context.UserConfig.Cache.RootPath, true, mUserConfig.Cache.MaxCacheSize, context.Log) : new NullCacheManager();
 
                 StateHash startingHash = null;
                 if (context.CommandLine.Resume)
@@ -100,6 +103,17 @@ namespace DBBranchManager
             }
 
             Beep("success");
+            return 0;
+        }
+
+        private int RunGarbageCollect()
+        {
+            if (mUserConfig.Cache.Disabled)
+                return 0;
+
+            var cacheManager = new CacheManager(mUserConfig.Cache.RootPath, true, mUserConfig.Cache.MaxCacheSize, new ConsoleLog());
+            cacheManager.GarbageCollect();
+
             return 0;
         }
 
@@ -307,6 +321,10 @@ namespace DBBranchManager
             }
 
             public void UpdateHits(IEnumerable<Tuple<string, StateHash>> keys)
+            {
+            }
+
+            public void GarbageCollect()
             {
             }
         }

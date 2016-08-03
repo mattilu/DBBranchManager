@@ -41,16 +41,28 @@ namespace DBBranchManager.Caching
 
         public static StateHash FromHexString(string hex)
         {
-            if (hex.Length != HashSize * 2)
+            StateHash result;
+            if (!TryFromHexString(hex, out result))
                 throw new ArgumentOutOfRangeException("hex");
+
+            return result;
+        }
+
+        public static bool TryFromHexString(string hex, out StateHash stateHash)
+        {
+            stateHash = null;
+            if (hex.Length != HashSize * 2)
+                return false;
 
             var hash = new byte[HashSize];
             for (var i = 0; i < HashSize; ++i)
             {
-                hash[i] = FromChars(hex[i * 2], hex[i * 2 + 1]);
+                if (!TryFromChars(hex[i * 2], hex[i * 2 + 1], out hash[i]))
+                    return false;
             }
 
-            return new StateHash(hash);
+            stateHash = new StateHash(hash);
+            return true;
         }
 
         public string ToHexString()
@@ -100,21 +112,34 @@ namespace DBBranchManager.Caching
             return (byte[])mHash.Clone();
         }
 
-        private static byte FromChars(char ch, char cl)
+        private static bool TryFromChars(char ch, char cl, out byte result)
         {
-            return (byte)(FromChar(ch) << 4 | FromChar(cl));
+            byte h, l;
+            if (!(TryFromChar(ch, out h) && TryFromChar(cl, out l)))
+            {
+                result = 0;
+                return false;
+            }
+
+            result = (byte)(h << 4 | l);
+            return true;
         }
 
-        private static byte FromChar(char c)
+        private static bool TryFromChar(char c, out byte result)
         {
             if (c >= '0' && c <= '9')
-                return (byte)(c - '0');
-            if (c >= 'a' && c <= 'f')
-                return (byte)(c - 'a' + 10);
-            if (c >= 'A' && c <= 'F')
-                return (byte)(c - 'A' + 10);
+                result = (byte)(c - '0');
+            else if (c >= 'a' && c <= 'f')
+                result = (byte)(c - 'a' + 10);
+            else if (c >= 'A' && c <= 'F')
+                result = (byte)(c - 'A' + 10);
+            else
+            {
+                result = 0;
+                return false;
+            }
 
-            throw new ArgumentOutOfRangeException("c");
+            return true;
         }
 
         private static string ByteArrayToHexString(IReadOnlyCollection<byte> bytes)

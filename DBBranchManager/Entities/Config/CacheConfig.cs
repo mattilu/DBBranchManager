@@ -6,12 +6,14 @@ namespace DBBranchManager.Entities.Config
     {
         private readonly string mRootPath;
         private readonly TimeSpan mMinDeployTime;
+        private readonly long mMaxCacheSize;
         private readonly bool mDisabled;
 
-        public CacheConfig(string rootPath, TimeSpan minDeployTime, bool disabled)
+        public CacheConfig(string rootPath, TimeSpan minDeployTime, long maxCacheSize, bool disabled)
         {
             mRootPath = rootPath;
             mMinDeployTime = minDeployTime;
+            mMaxCacheSize = maxCacheSize;
             mDisabled = disabled;
         }
 
@@ -23,6 +25,11 @@ namespace DBBranchManager.Entities.Config
         public TimeSpan MinDeployTime
         {
             get { return mMinDeployTime; }
+        }
+
+        public long MaxCacheSize
+        {
+            get { return mMaxCacheSize; }
         }
 
         public bool Disabled
