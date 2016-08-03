@@ -118,7 +118,12 @@ namespace DBBranchManager.Caching
                 fs.SetLength(0);
 
                 var writer = new StreamWriter(fs);
-                var jWriter = new JsonTextWriter(writer);
+                var jWriter = new JsonTextWriter(writer)
+                {
+                    Formatting = Formatting.Indented,
+                    IndentChar = ' ',
+                    Indentation = 2
+                };
                 jRoot.WriteTo(jWriter);
 
                 jWriter.Flush();
