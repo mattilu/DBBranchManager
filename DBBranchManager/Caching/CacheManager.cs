@@ -128,21 +128,7 @@ namespace DBBranchManager.Caching
 
         private static string GetFileName(StateHash state)
         {
-            return ByteArrayToHexString(state.GetBytes());
-        }
-
-        private static string ByteArrayToHexString(byte[] bytes)
-        {
-            const string hexAlphabet = "0123456789ABCDEF";
-            var result = new StringBuilder(bytes.Length * 2);
-
-            foreach (var b in bytes)
-            {
-                result.Append(hexAlphabet[b >> 4]);
-                result.Append(hexAlphabet[b & 0xF]);
-            }
-
-            return result.ToString();
+            return state.ToHexString();
         }
     }
 }
