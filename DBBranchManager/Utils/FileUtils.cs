@@ -2,9 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Threading;
-using Microsoft.Win32.SafeHandles;
 
 namespace DBBranchManager.Utils
 {
@@ -115,23 +113,6 @@ namespace DBBranchManager.Utils
                 .Select(ToLocalPath)
                 .ToArray());
         }
-
-        [DllImport("Kernel32.dll", SetLastError = true)]
-        private static extern bool LockFileEx(SafeFileHandle handle, uint flags, uint reserved, uint countLow, uint countHigh, ref OVERLAPPED overlapped);
-
-        [DllImport("Kernel32.dll", SetLastError = true)]
-        private static extern bool UnlockFileEx(SafeFileHandle handle, uint reserved, uint countLow, uint countHigh, ref OVERLAPPED overlapped);
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct OVERLAPPED
-        {
-            public uint internalLow;
-            public uint internalHigh;
-            public uint offsetLow;
-            public uint offsetHigh;
-            public IntPtr hEvent;
-        }
-
 
         public class FileData
         {
