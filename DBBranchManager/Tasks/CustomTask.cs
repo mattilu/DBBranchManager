@@ -34,7 +34,7 @@ namespace DBBranchManager.Tasks
         private StateHash ExecuteCore(TaskExecutionContext context, StateHash hash, bool execute)
         {
             RecipeConfig recipe;
-            if (!mTaskDefinition.Commands.TryGetRecipe(context.CommandLine.Command, out recipe))
+            if (!mTaskDefinition.Commands.TryGetRecipe(context.Context.Action, out recipe))
                 return hash;
 
             if (execute)

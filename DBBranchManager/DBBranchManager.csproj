@@ -39,6 +39,10 @@
       <HintPath>..\packages\Newtonsoft.Json.9.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="Mono.Options, Version=4.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Mono.Options.4.4.0.0\lib\net4-client\Mono.Options.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Runtime.Serialization" />
@@ -58,11 +62,14 @@
     <Compile Include="Caching\IStateTransform.cs" />
     <Compile Include="Caching\TaskExecutionTransform.cs" />
     <Compile Include="Caching\TransformHelper.cs" />
-    <Compile Include="Config\CommandLineArgumentsParser.cs" />
+    <Compile Include="Commands\DbbmCommand.cs" />
+    <Compile Include="Commands\DbbmDeployCommand.cs" />
+    <Compile Include="Commands\DbbmGarbageCollectCommand.cs" />
+    <Compile Include="Commands\DbbmHelpCommand.cs" />
     <Compile Include="Constants\CommandConstants.cs" />
     <Compile Include="Constants\EnvironmentConstants.cs" />
     <Compile Include="Constants\FileConstants.cs" />
-    <Compile Include="Entities\CommandLineArguments.cs" />
+    <Compile Include="Entities\ApplicationContext.cs" />
     <Compile Include="Entities\Config\BeepConfig.cs" />
     <Compile Include="Entities\Config\BeepsConfig.cs" />
     <Compile Include="Entities\Config\CacheConfig.cs" />

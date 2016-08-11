@@ -9,17 +9,17 @@ namespace DBBranchManager.Tasks
     {
         private static readonly Regex ReplacementRegex = new Regex(@"(?<=(?<!\$)(?:\$\$)*)\$\((?<key>[^)]+)\)", RegexOptions.Compiled);
 
-        private readonly RunContext mContext;
+        private readonly ApplicationContext mContext;
         private readonly FeatureConfig mFeature;
         private readonly TaskConfig mTask;
         private readonly Dictionary<string, string> mReplacements;
 
-        public VariableReplacer(RunContext context, FeatureConfig feature, TaskConfig task) :
+        public VariableReplacer(ApplicationContext context, FeatureConfig feature, TaskConfig task) :
             this(context, feature, task, BuildInitialReplacements(context, feature, task))
         {
         }
 
-        private VariableReplacer(RunContext context, FeatureConfig feature, TaskConfig task, Dictionary<string, string> replacements)
+        private VariableReplacer(ApplicationContext context, FeatureConfig feature, TaskConfig task, Dictionary<string, string> replacements)
         {
             mContext = context;
             mFeature = feature;
@@ -64,7 +64,7 @@ namespace DBBranchManager.Tasks
             return string.Empty;
         }
 
-        private static Dictionary<string, string> BuildInitialReplacements(RunContext context, FeatureConfig feature, TaskConfig task)
+        private static Dictionary<string, string> BuildInitialReplacements(ApplicationContext context, FeatureConfig feature, TaskConfig task)
         {
             var result = new Dictionary<string, string>();
 

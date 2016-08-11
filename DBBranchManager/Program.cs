@@ -9,8 +9,8 @@ namespace DBBranchManager
         {
             try
             {
-                var app = new Application(args);
-                return app.Run();
+                var app = new Application();
+                return app.Run(args);
             }
             catch (SoftFailureException ex)
             {

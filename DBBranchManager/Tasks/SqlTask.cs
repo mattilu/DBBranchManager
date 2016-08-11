@@ -58,7 +58,7 @@ namespace DBBranchManager.Tasks
 
                 if (execute && !context.DryRun)
                 {
-                    using (var sqlcmdResult = SqlUtils.SqlCmdExec(context.Context.UserConfig.Databases.Connection, script))
+                    using (var sqlcmdResult = SqlUtils.SqlCmdExec(context.Context.ApplicationContext.UserConfig.Databases.Connection, script))
                     {
                         foreach (var processOutputLine in sqlcmdResult.GetOutput())
                         {

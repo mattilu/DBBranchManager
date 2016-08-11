@@ -1,98 +1,65 @@
+using System.IO;
 using DBBranchManager.Constants;
 using DBBranchManager.Entities.Config;
 using DBBranchManager.Exceptions;
-using DBBranchManager.Logging;
 using DBBranchManager.Tasks;
+using DBBranchManager.Utils;
 
 namespace DBBranchManager.Entities
 {
     internal class RunContext
     {
-        private readonly CommandLineArguments mCommandLine;
-        private readonly string mProjectRoot;
-        private readonly UserConfig mUserConfig;
-        private readonly ProjectConfig mProjectConfig;
-        private readonly ReleasesConfig mReleases;
-        private readonly FeatureConfigCollection mFeatures;
-        private readonly TaskDefinitionConfigCollection mTasks;
+        private readonly ApplicationContext mApplicationContext;
+        private readonly string mAction;
+        private readonly ReleasesConfig mReleasesConfig;
+        private readonly FeatureConfigCollection mFeaturesConfig;
+        private readonly TaskDefinitionConfigCollection mTaskDefinitionsConfig;
         private readonly TaskManager mTaskManager;
-        private readonly ILog mLog;
         private readonly ReleaseConfig mActiveRelease;
         private readonly EnvironmentConfig mActiveEnvironment;
         private readonly bool mDryRun;
-        private readonly bool mUseCache;
 
-        public RunContext(CommandLineArguments commandLine, string projectRoot, UserConfig userConfig, ProjectConfig projectConfig, ReleasesConfig releases, FeatureConfigCollection features, TaskDefinitionConfigCollection tasks, TaskManager taskManager, ILog log)
+        private RunContext(ApplicationContext applicationContext, string action, ReleasesConfig releasesConfig, FeatureConfigCollection featuresConfig, TaskDefinitionConfigCollection taskDefinitionsConfig, TaskManager taskManager, ReleaseConfig activeRelease, EnvironmentConfig activeEnvironment, bool dryRun)
         {
-            mCommandLine = commandLine;
-            mProjectRoot = projectRoot;
-            mUserConfig = userConfig;
-            mProjectConfig = projectConfig;
-            mReleases = releases;
-            mFeatures = features;
-            mTasks = tasks;
+            mApplicationContext = applicationContext;
+            mAction = action;
+            mReleasesConfig = releasesConfig;
+            mFeaturesConfig = featuresConfig;
+            mTaskDefinitionsConfig = taskDefinitionsConfig;
             mTaskManager = taskManager;
-            mLog = log;
-
-            var release = commandLine.Release ?? userConfig.ActiveRelease ?? releases.DefaultRelease;
-            if (!releases.Releases.TryGet(release, out mActiveRelease))
-            {
-                throw new SoftFailureException(string.Format("Cannot find Release '{0}'", release));
-            }
-
-            var userEnv = mUserConfig.EnvironmentVariables.GetOrDefault(EnvironmentConstants.Environment, EnvironmentConstants.DefaultEnvironment);
-            if (!mProjectConfig.Environments.TryGet(userEnv, out mActiveEnvironment))
-            {
-                throw new SoftFailureException(string.Format("Cannot find Environment '{0}'", userEnv));
-            }
-
-            mDryRun = commandLine.DryRun;
-            mUseCache = !userConfig.Cache.Disabled;
+            mActiveRelease = activeRelease;
+            mActiveEnvironment = activeEnvironment;
+            mDryRun = dryRun;
         }
 
-        public CommandLineArguments CommandLine
+        public ApplicationContext ApplicationContext
         {
-            get { return mCommandLine; }
+            get { return mApplicationContext; }
         }
 
-        public string ProjectRoot
+        public string Action
         {
-            get { return mProjectRoot; }
+            get { return mAction; }
         }
 
-        public UserConfig UserConfig
+        public ReleasesConfig ReleasesConfig
         {
-            get { return mUserConfig; }
+            get { return mReleasesConfig; }
         }
 
-        public ProjectConfig ProjectConfig
+        public FeatureConfigCollection FeaturesConfig
         {
-            get { return mProjectConfig; }
+            get { return mFeaturesConfig; }
         }
 
-        public ReleasesConfig Releases
+        public TaskDefinitionConfigCollection TaskDefinitionsConfig
         {
-            get { return mReleases; }
-        }
-
-        public FeatureConfigCollection Features
-        {
-            get { return mFeatures; }
-        }
-
-        public TaskDefinitionConfigCollection Tasks
-        {
-            get { return mTasks; }
+            get { return mTaskDefinitionsConfig; }
         }
 
         public TaskManager TaskManager
         {
             get { return mTaskManager; }
-        }
-
-        public ILog Log
-        {
-            get { return mLog; }
         }
 
         public ReleaseConfig ActiveRelease
@@ -110,9 +77,33 @@ namespace DBBranchManager.Entities
             get { return mDryRun; }
         }
 
-        public bool UseCache
+        public static RunContext Create(ApplicationContext applicationContext, string action, string release, string env, bool dryRun)
         {
-            get { return mUseCache; }
+            var releasesFile = Path.Combine(applicationContext.ProjectRoot, applicationContext.ProjectConfig.Releases);
+            var releases = ReleasesConfig.LoadFromJson(releasesFile);
+
+            var featuresFiles = FileUtils.ExpandGlob(Path.Combine(applicationContext.ProjectRoot, applicationContext.ProjectConfig.Features));
+            var features = FeatureConfigCollection.LoadFromMultipleJsons(featuresFiles);
+
+            var tasksFiles = FileUtils.ExpandGlob(Path.Combine(applicationContext.ProjectRoot, applicationContext.ProjectConfig.Tasks));
+            var tasks = TaskDefinitionConfigCollection.LoadFromMultipleJsons(tasksFiles);
+
+            if (string.IsNullOrWhiteSpace(release))
+                release = applicationContext.UserConfig.ActiveRelease ?? releases.DefaultRelease;
+            if (string.IsNullOrWhiteSpace(env))
+                env = applicationContext.UserConfig.EnvironmentVariables.GetOrDefault(EnvironmentConstants.Environment, EnvironmentConstants.DefaultEnvironment);
+
+            ReleaseConfig activeRelease;
+            if (!releases.Releases.TryGet(release, out activeRelease))
+                throw new SoftFailureException(string.Format("Cannot find Release '{0}'", release));
+
+            EnvironmentConfig activeEnvironment;
+            if (!applicationContext.ProjectConfig.Environments.TryGet(env, out activeEnvironment))
+                throw new SoftFailureException(string.Format("Cannot find Environment '{0}'", env));
+
+            var taskManager = new TaskManager(tasks);
+
+            return new RunContext(applicationContext, action, releases, features, tasks, taskManager, activeRelease, activeEnvironment, dryRun);
         }
     }
 }

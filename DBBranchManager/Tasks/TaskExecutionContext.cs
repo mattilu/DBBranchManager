@@ -42,12 +42,7 @@ namespace DBBranchManager.Tasks
 
         public ILog Log
         {
-            get { return mContext.Log; }
-        }
-
-        public CommandLineArguments CommandLine
-        {
-            get { return mContext.CommandLine; }
+            get { return mContext.ApplicationContext.Log; }
         }
 
         public bool DryRun
