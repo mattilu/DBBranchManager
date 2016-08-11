@@ -90,7 +90,7 @@ namespace DBBranchManager.Tasks
                     if (filter(file.FileName))
                     {
                         if (log)
-                            context.Log.LogFormat("Adding {0}", file);
+                            context.Log.LogFormat("Adding {0}", file.FileName);
                         sb.AppendFormat("{0}\n", context.GetParameter("templates.item", new Dictionary<string, string> { { "file", file.FileName } }));
 
                         t.TransformWithFileSmart(file.FullPath);
@@ -98,7 +98,7 @@ namespace DBBranchManager.Tasks
                     else
                     {
                         if (log)
-                            context.Log.LogFormat("Skipping {0}", file);
+                            context.Log.LogFormat("Skipping {0}", file.FileName);
                     }
                 }
 
