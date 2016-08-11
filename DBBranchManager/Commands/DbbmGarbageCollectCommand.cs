@@ -37,7 +37,7 @@ namespace DBBranchManager.Commands
             if (context.CacheConfig.Disabled)
                 return;
 
-            var cacheManager = new CacheManager(context.CacheConfig.RootPath, true, context.CacheConfig.MaxCacheSize, false, context.Log);
+            var cacheManager = new CacheManager(context.CacheConfig.RootPath, true, context.CacheConfig.MaxCacheSize, false, context.DryRun, context.Log);
             cacheManager.GarbageCollect(false);
         }
 

@@ -17,14 +17,16 @@ namespace DBBranchManager.Caching
         private readonly bool mAllowCompression;
         private readonly long mMaxCacheSize;
         private readonly bool mAutoGC;
+        private readonly bool mDryRun;
         private readonly ILog mLog;
 
-        public CacheManager(string path, bool allowCompression, long maxCacheSize, bool autoGC, ILog log)
+        public CacheManager(string path, bool allowCompression, long maxCacheSize, bool autoGC, bool dryRun, ILog log)
         {
             mPath = path;
             mAllowCompression = allowCompression;
             mMaxCacheSize = maxCacheSize;
             mAutoGC = autoGC;
+            mDryRun = dryRun;
             mLog = log;
         }
 
@@ -32,7 +34,7 @@ namespace DBBranchManager.Caching
         {
             path = null;
 
-            var root = GetCachesDir();
+            var root = GetCachesDir(false);
             if (!root.Exists)
                 return false;
 
@@ -54,10 +56,7 @@ namespace DBBranchManager.Caching
 
         public void Add(DatabaseConnectionConfig dbConfig, string dbName, StateHash hash)
         {
-            var root = GetCachesDir();
-            root.Create();
-
-            var db = root.CreateSubdirectory(dbName);
+            var db = GetDatabaseDir(dbName, true);
             var file = Path.Combine(db.FullName, GetFileName(hash));
 
             if (File.Exists(file))
@@ -66,18 +65,21 @@ namespace DBBranchManager.Caching
             if (mAutoGC)
                 GarbageCollect(true);
 
-            int exitCode;
+            var exitCode = 0;
             mLog.LogFormat("Caching {0} to {1}", dbName, file);
 
-            using (var process = SqlUtils.BackupDatabase(dbConfig, dbName, file, mAllowCompression))
-            using (mLog.IndentScope())
+            if (!mDryRun)
             {
-                foreach (var line in process.GetOutput())
+                using (var process = SqlUtils.BackupDatabase(dbConfig, dbName, file, mAllowCompression))
+                using (mLog.IndentScope())
                 {
-                    mLog.Log(line.Line);
-                }
+                    foreach (var line in process.GetOutput())
+                    {
+                        mLog.Log(line.Line);
+                    }
 
-                exitCode = process.ExitCode;
+                    exitCode = process.ExitCode;
+                }
             }
 
             if (exitCode != 0)
@@ -93,10 +95,13 @@ namespace DBBranchManager.Caching
 
         public void UpdateHits(IEnumerable<Tuple<string, StateHash>> keys)
         {
+            if (mDryRun)
+                return;
+
             var root = new DirectoryInfo(mPath);
             root.Create();
 
-            using (var fs = AcquirerHitTableFile())
+            using (var fs = AcquireHitTableFile())
             {
                 var jRoot = ReadHitTableFile(fs);
 
@@ -117,7 +122,7 @@ namespace DBBranchManager.Caching
             if (!silent)
                 mLog.Log("Running Cache Garbage Collection");
 
-            using (var fs = AcquirerHitTableFile())
+            using (var fs = AcquireHitTableFile())
             {
                 var hitTable = ReadHitTableFile(fs);
                 var stats = Stat(hitTable);
@@ -130,7 +135,8 @@ namespace DBBranchManager.Caching
                     {
                         if (!silent)
                             mLog.LogFormat("Deleting {0}", stat.File);
-                        File.Delete(stat.File);
+                        if (!mDryRun)
+                            File.Delete(stat.File);
                     }
                     else if (stat.File == null && stat.Hash != null)
                     {
@@ -147,21 +153,22 @@ namespace DBBranchManager.Caching
                     }
                 }
 
-                if (mMaxCacheSize < 0)
-                    return;
-
-                var it = left.OrderBy(x => x.Item1.LastHit).GetEnumerator();
-                while (totalLength > mMaxCacheSize && it.MoveNext())
+                if (mMaxCacheSize >= 0)
                 {
-                    var item = it.Current;
-                    var stat = item.Item1;
+                    var it = left.OrderBy(x => x.Item1.LastHit).GetEnumerator();
+                    while (totalLength > mMaxCacheSize && it.MoveNext())
+                    {
+                        var item = it.Current;
+                        var stat = item.Item1;
 
-                    if (!silent)
-                        mLog.LogFormat("Erasing {0}", stat.File);
-                    File.Delete(stat.File);
-                    ((JObject)hitTable[stat.Database]).Remove(stat.Hash.ToHexString());
+                        if (!silent)
+                            mLog.LogFormat("Erasing {0}", stat.File);
+                        if (!mDryRun)
+                            File.Delete(stat.File);
+                        ((JObject)hitTable[stat.Database]).Remove(stat.Hash.ToHexString());
 
-                    totalLength -= item.Item2;
+                        totalLength -= item.Item2;
+                    }
                 }
 
                 WriteHitTableFile(fs, hitTable);
@@ -186,8 +193,11 @@ namespace DBBranchManager.Caching
             return jRoot;
         }
 
-        private static void WriteHitTableFile(FileStream fs, JObject jRoot)
+        private void WriteHitTableFile(FileStream fs, JObject jRoot)
         {
+            if (mDryRun)
+                return;
+
             fs.Seek(0, SeekOrigin.Begin);
             fs.SetLength(0);
 
@@ -223,7 +233,9 @@ namespace DBBranchManager.Caching
                     h.Hash,
                     h.LastHitTime
                 });
-            var files = GetCachesDir().EnumerateDirectories()
+            var root = GetCachesDir(false);
+            var dirs = root.Exists ? root.EnumerateDirectories() : Enumerable.Empty<DirectoryInfo>();
+            var files = dirs
                 .Select(x => new
                 {
                     Database = x.Name,
@@ -250,19 +262,33 @@ namespace DBBranchManager.Caching
                 select new StatEntry(key.Database, key.Hash, f == null ? null : f.FilePath, t == null ? (DateTime?)null : t.LastHitTime);
         }
 
-        private FileStream AcquirerHitTableFile()
+        private FileStream AcquireHitTableFile()
         {
             return FileUtils.AcquireFile(Path.Combine(mPath, "hit.json"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
         }
 
 
-        private DirectoryInfo GetCachesDir()
+        private DirectoryInfo GetCachesDir(bool create)
         {
-            return new DirectoryInfo(Path.Combine(mPath, "caches"));
+            var dir = new DirectoryInfo(Path.Combine(mPath, "caches"));
+
+            if (create && !mDryRun)
+                dir.Create();
+
+            return dir;
+        }
+
+        private DirectoryInfo GetDatabaseDir(string dbName, bool create)
+        {
+            var root = GetCachesDir(create);
+            return create ? root.CreateSubdirectory(dbName) : new DirectoryInfo(Path.Combine(root.FullName, dbName));
         }
 
         private void UpdateHit(string dbName, StateHash hash)
         {
+            if (mDryRun)
+                return;
+
             UpdateHits(Enumerable.Repeat(Tuple.Create(dbName, hash), 1));
         }
 

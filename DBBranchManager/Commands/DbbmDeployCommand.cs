@@ -334,7 +334,7 @@ namespace DBBranchManager.Commands
                 if (noCache)
                     return new NullCacheManager();
 
-                return new CacheManager(context.ApplicationContext.UserConfig.Cache.RootPath, true, context.ApplicationContext.UserConfig.Cache.MaxCacheSize, context.ApplicationContext.UserConfig.Cache.AutoGC, context.ApplicationContext.Log);
+                return new CacheManager(context.ApplicationContext.UserConfig.Cache.RootPath, true, context.ApplicationContext.UserConfig.Cache.MaxCacheSize, context.ApplicationContext.UserConfig.Cache.AutoGC, context.DryRun, context.ApplicationContext.Log);
             }
         }
 
