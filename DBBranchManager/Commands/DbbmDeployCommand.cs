@@ -28,13 +28,16 @@ namespace DBBranchManager.Commands
             var dryRun = false;
             var resume = false;
             var noCache = appContext.UserConfig.Cache.Disabled;
+            var noBeeps = false;
 
             var p = new OptionSet
             {
                 { "r=|release=", "Select which release to use, instead of the default.", v => release = v },
                 { "e=|env=|environment=", "Select which environment to use, instead of the default", v => env = v },
                 { "n|dry-run", "Don't actually run actions, just print what would be done and exit.", v => dryRun = v != null },
-                { "s|resume", "Resume a failed deploy, if possible.", v => resume = v != null }
+                { "s|resume", "Resume a failed deploy, if possible.", v => resume = v != null },
+                { "C|no-cache", "Disable cache.", v => noCache = v != null },
+                { "B|no-beeps", "Disable buzzer.", v => noBeeps = v != null }
             };
 
             var extra = Parse(p, args,
@@ -44,7 +47,7 @@ namespace DBBranchManager.Commands
                 return;
 
             var runContext = RunContext.Create(appContext, CommandConstants.Deploy, release, env, dryRun);
-            RunCore(DeployContext.Create(runContext, resume, noCache));
+            RunCore(DeployContext.Create(runContext, resume, noCache, noBeeps));
         }
 
 
@@ -139,6 +142,9 @@ namespace DBBranchManager.Commands
 
         private static void Beep(DeployContext context, string type)
         {
+            if (context.NoBeeps)
+                return;
+
             BeepConfig beep;
             if (context.ApplicationContext.UserConfig.Beeps.TryGetValue(type, out beep))
                 Buzzer.Beep(beep.Frequency, beep.Duration, beep.Pulses, beep.DutyCycle);
@@ -255,13 +261,15 @@ namespace DBBranchManager.Commands
             private readonly ICacheManager mCacheManager;
             private readonly bool mResume;
             private readonly bool mNoCache;
+            private readonly bool mNoBeeps;
 
-            private DeployContext(RunContext runContext, ICacheManager cacheManager, bool resume, bool noCache)
+            private DeployContext(RunContext runContext, ICacheManager cacheManager, bool resume, bool noCache, bool noBeeps)
             {
                 mRunContext = runContext;
                 mCacheManager = cacheManager;
                 mResume = resume;
                 mNoCache = noCache;
+                mNoBeeps = noBeeps;
             }
 
             public RunContext RunContext
@@ -324,9 +332,14 @@ namespace DBBranchManager.Commands
                 get { return mNoCache; }
             }
 
-            public static DeployContext Create(RunContext runContext, bool resume, bool noCache)
+            public bool NoBeeps
             {
-                return new DeployContext(runContext, CreateCacheManager(runContext, noCache), resume, noCache);
+                get { return mNoBeeps; }
+            }
+
+            public static DeployContext Create(RunContext runContext, bool resume, bool noCache, bool noBeeps)
+            {
+                return new DeployContext(runContext, CreateCacheManager(runContext, noCache), resume, noCache, noBeeps);
             }
 
             private static ICacheManager CreateCacheManager(RunContext context, bool noCache)
