@@ -14,6 +14,9 @@ namespace DBBranchManager.Caching
         public HashTransformer(StateHash hash)
         {
             mHash = hash;
+            if (hash == null)
+                return;
+
             mHasher = new SHA256Cng();
 
             var bytes = mHash.GetBytes();
@@ -24,22 +27,34 @@ namespace DBBranchManager.Caching
 
         public void Dispose()
         {
+            if (mHash == null)
+                return;
+
             mCryptoStream.Close();
         }
 
         public void Transform(Stream stream)
         {
+            if (mHash == null)
+                return;
+
             stream.CopyTo(mCryptoStream);
         }
 
         public void Transform(string str)
         {
+            if (mHash == null)
+                return;
+
             var bytes = Encoding.UTF8.GetBytes(str);
             mCryptoStream.Write(bytes, 0, bytes.Length);
         }
 
         public StateHash GetResult()
         {
+            if (mHash == null)
+                return null;
+
             mCryptoStream.Close();
             return new StateHash(mHasher.Hash);
         }

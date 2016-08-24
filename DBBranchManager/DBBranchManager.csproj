@@ -66,9 +66,11 @@
     <Compile Include="Commands\DbbmDeployCommand.cs" />
     <Compile Include="Commands\DbbmGarbageCollectCommand.cs" />
     <Compile Include="Commands\DbbmHelpCommand.cs" />
+    <Compile Include="Commands\DbbmRunCommand.cs" />
     <Compile Include="Constants\CommandConstants.cs" />
     <Compile Include="Constants\EnvironmentConstants.cs" />
     <Compile Include="Constants\FileConstants.cs" />
+    <Compile Include="Entities\ActionPlan.cs" />
     <Compile Include="Entities\ApplicationContext.cs" />
     <Compile Include="Entities\Config\BeepConfig.cs" />
     <Compile Include="Entities\Config\BeepsConfig.cs" />

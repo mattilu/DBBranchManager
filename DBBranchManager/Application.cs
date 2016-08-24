@@ -21,6 +21,7 @@ namespace DBBranchManager
             mSubCommands = new Dictionary<string, DbbmCommand>
             {
                 { CommandConstants.Deploy, new DbbmDeployCommand() },
+                { CommandConstants.Run, new DbbmRunCommand() },
                 { CommandConstants.GarbageCollect, new DbbmGarbageCollectCommand() }
             };
             mSubCommands.Add(CommandConstants.Help, new DbbmHelpCommand(mSubCommands));

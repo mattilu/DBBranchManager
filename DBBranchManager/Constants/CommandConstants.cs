@@ -4,6 +4,7 @@ namespace DBBranchManager.Constants
     {
         public const string Help = "help";
         public const string Deploy = "deploy";
+        public const string Run = "run";
         public const string GarbageCollect = "gc";
 
         public const string GenerateScripts = "generate-scripts";
