@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
@@ -35,24 +35,12 @@
     <ApplicationIcon>Resources\icon.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Newtonsoft.Json, Version=7.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <HintPath>..\packages\Newtonsoft.Json.7.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
+    <Reference Include="Newtonsoft.Json, Version=9.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.9.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="QuickGraph, Version=3.6.61114.0, Culture=neutral, PublicKeyToken=f3fb40175eec2af3, processorArchitecture=MSIL">
-      <HintPath>..\packages\QuickGraph.3.6.61119.7\lib\net4\QuickGraph.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="QuickGraph.Data, Version=3.6.61114.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\QuickGraph.3.6.61119.7\lib\net4\QuickGraph.Data.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="QuickGraph.Graphviz, Version=3.6.61114.0, Culture=neutral, PublicKeyToken=f3fb40175eec2af3, processorArchitecture=MSIL">
-      <HintPath>..\packages\QuickGraph.3.6.61119.7\lib\net4\QuickGraph.Graphviz.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="QuickGraph.Serialization, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\QuickGraph.3.6.61119.7\lib\net4\QuickGraph.Serialization.dll</HintPath>
+    <Reference Include="Mono.Options, Version=4.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Mono.Options.4.4.0.0\lib\net4-client\Mono.Options.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="System" />
@@ -67,44 +55,64 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Application.cs" />
-    <Compile Include="Components\AggregatorComponent.cs" />
-    <Compile Include="Components\BranchComponent.cs" />
-    <Compile Include="Components\ComponentBase.cs" />
-    <Compile Include="Components\DeployComponent.cs" />
-    <Compile Include="Components\FileSynchronizer.cs" />
-    <Compile Include="Components\IComponent.cs" />
-    <Compile Include="Components\LogComponent.cs" />
-    <Compile Include="Components\ReleaseComponent.cs" />
-    <Compile Include="Components\ReportsComponent.cs" />
-    <Compile Include="Components\RestoreDatabaseComponent.cs" />
-    <Compile Include="Components\RunActionAttribute.cs" />
-    <Compile Include="Components\TemplatesComponent.cs" />
-    <Compile Include="Config\BranchInfo.cs" />
-    <Compile Include="Config\Configuration.cs" />
-    <Compile Include="Config\DatabaseConnectionInfo.cs" />
-    <Compile Include="Config\DatabaseInfo.cs" />
-    <Compile Include="Constants\ActionConstants.cs" />
-    <Compile Include="Dependencies\DependencyGraph.cs" />
-    <Compile Include="Dependencies\StatefulDependencyGraph.cs" />
-    <Compile Include="Dependencies\IDependencyGraph.cs" />
-    <Compile Include="Dependencies\IMutableDependencyGraph.cs" />
-    <Compile Include="Dependencies\IMutableStatefulDependencyGraph.cs" />
-    <Compile Include="Dependencies\IStatefulDependencyGraph.cs" />
-    <Compile Include="Dependencies\NodeState.cs" />
+    <Compile Include="Caching\CacheManager.cs" />
+    <Compile Include="Caching\HashTransformer.cs" />
+    <Compile Include="Caching\ICacheManager.cs" />
+    <Compile Include="Caching\StateHash.cs" />
+    <Compile Include="Caching\IStateTransform.cs" />
+    <Compile Include="Caching\TaskExecutionTransform.cs" />
+    <Compile Include="Caching\TransformHelper.cs" />
+    <Compile Include="Commands\DbbmCommand.cs" />
+    <Compile Include="Commands\DbbmDeployCommand.cs" />
+    <Compile Include="Commands\DbbmGarbageCollectCommand.cs" />
+    <Compile Include="Commands\DbbmHelpCommand.cs" />
+    <Compile Include="Commands\DbbmRunCommand.cs" />
+    <Compile Include="Constants\CommandConstants.cs" />
+    <Compile Include="Constants\EnvironmentConstants.cs" />
+    <Compile Include="Constants\FileConstants.cs" />
+    <Compile Include="Entities\ActionPlan.cs" />
+    <Compile Include="Entities\ApplicationContext.cs" />
+    <Compile Include="Entities\Config\BeepConfig.cs" />
+    <Compile Include="Entities\Config\BeepsConfig.cs" />
+    <Compile Include="Entities\Config\CacheConfig.cs" />
+    <Compile Include="Entities\Config\DatabaseConnectionConfig.cs" />
+    <Compile Include="Entities\Config\DatabasesConfig.cs" />
+    <Compile Include="Entities\Config\EnvironmentConfig.cs" />
+    <Compile Include="Entities\Config\EnvironmentsConfig.cs" />
+    <Compile Include="Entities\Config\EnvironmentVariablesConfig.cs" />
+    <Compile Include="Entities\Config\FeatureConfig.cs" />
+    <Compile Include="Entities\Config\FeatureConfigCollection.cs" />
+    <Compile Include="Entities\Config\ProjectConfig.cs" />
+    <Compile Include="Entities\Config\RecipeConfig.cs" />
+    <Compile Include="Entities\Config\ReleaseConfig.cs" />
+    <Compile Include="Entities\Config\ReleaseConfigCollection.cs" />
+    <Compile Include="Entities\Config\ReleasesConfig.cs" />
+    <Compile Include="Entities\Config\TaskConfig.cs" />
+    <Compile Include="Entities\Config\TaskDefinitionConfig.cs" />
+    <Compile Include="Entities\Config\TaskDefinitionConfigCollection.cs" />
+    <Compile Include="Entities\Config\UserConfig.cs" />
+    <Compile Include="Entities\DatabaseBackupInfo.cs" />
+    <Compile Include="Entities\RunContext.cs" />
+    <Compile Include="Exceptions\SoftFailureException.cs" />
+    <Compile Include="Logging\ConsoleLog.cs" />
+    <Compile Include="Logging\ILog.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Components\ScriptsComponent.cs" />
+    <Compile Include="Tasks\CopyTask.cs" />
+    <Compile Include="Tasks\CustomTask.cs" />
+    <Compile Include="Tasks\DontRegisterAttribute.cs" />
+    <Compile Include="Tasks\ITask.cs" />
+    <Compile Include="Caching\RestoreDatabasesTransform.cs" />
+    <Compile Include="Tasks\SqlTask.cs" />
+    <Compile Include="Tasks\TaskExecutionContext.cs" />
+    <Compile Include="Tasks\TaskManager.cs" />
+    <Compile Include="Tasks\VariableReplacer.cs" />
     <Compile Include="Utils\Buzzer.cs" />
-    <Compile Include="Utils\ComponentExtensions.cs" />
-    <Compile Include="Utils\ConsoleUtils.cs" />
-    <Compile Include="Utils\EnhanchedFileSystemWatcher.cs" />
-    <Compile Include="Utils\EnumerableExtensions.cs" />
     <Compile Include="Utils\FileUtils.cs" />
     <Compile Include="Utils\MiscExtensions.cs" />
     <Compile Include="Utils\NaturalSortComparer.cs" />
+    <Compile Include="Utils\NumericUtils.cs" />
     <Compile Include="Utils\ProcessUtils.cs" />
-    <Compile Include="Utils\IdentityComparer.cs" />
-    <Compile Include="Utils\SingleThreadSynchronizationContext.cs" />
     <Compile Include="Utils\Sql\SqlCommandFactory.cs" />
     <Compile Include="Utils\Sql\SqlMessageEventArgs.cs" />
     <Compile Include="Utils\Sql\SqlMessageEventHandler.cs" />
@@ -113,7 +121,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
-    <None Include="config.example.json" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>

@@ -1,0 +1,11 @@
+{
+  "name": "feature-x",
+  "recipe": [
+    {
+      "std-deploy": {
+        "rootPath": "to_deploy",
+        "deployPath": "E:/ScriptsSII/$(f:name)"
+      }
+    }
+  ]
+}

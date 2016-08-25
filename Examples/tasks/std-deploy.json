@@ -1,0 +1,140 @@
+{
+  "name": "std-deploy",
+  "define": {
+    "preScript": [
+      ":on error exit",
+      "",
+      "USE [DB_AVIVA_S2]",
+      "GO",
+      "",
+      "SET XACT_ABORT ON",
+      "GO",
+      "",
+      "BEGIN TRANSACTION",
+      "GO",
+      "",
+      "TRUNCATE TABLE [Interdependencies].[TBC_CACHE_ITEM_DEPENDENCY]",
+      ""
+    ],
+    "itemScript": [
+      "PRINT 'BEGIN $(file)'",
+      "GO",
+      ":r $$(path)/\"$(file)\"",
+      "GO",
+      "PRINT 'END $(file)'"
+    ],
+    "postScript": [
+      "GO",
+      ""
+    ],
+    "reportsRegex": "^[DTX]_\\d+.+\\.x(?:lsm|ml)$",
+    "templatesRegex": "^TPL_\\d+_.+\\.xls[mx]?$",
+    "scriptsRegex": "^\\d+(?:-(?<env>[^.]+))?\\..*\\.sql$"
+  },
+  "commands": {
+    "deploy": [
+      {
+        "copy": {
+          "from": "$(rootPath)/Reports",
+          "to": "$(deployPath)",
+          "regex": "$(reportsRegex)"
+        }
+      },
+      {
+        "copy": {
+          "from": "$(rootPath)/Templates",
+          "to": "$(deployPath)",
+          "regex": "$(templatesRegex)"
+        }
+      },
+      {
+        "sql": {
+          "path": "$(rootPath)/Scripts",
+          "regex": "$(scriptsRegex)",
+          "sqlcmdMode": true,
+          "templates": {
+            "pre": [
+              ":setvar path \"$(path)\"",
+              "$(preScript)"
+            ],
+            "item": "$(itemScript)",
+            "post": [
+              "$(postScript)",
+              "PRINT 'Committing...'",
+              "COMMIT TRANSACTION"
+            ]
+          }
+        }
+      }
+    ],
+    "generate-scripts": [
+      {
+        "sql": {
+          "path": "$(rootPath)/Scripts",
+          "regex": "$(scriptsRegex)",
+          "execute": false,
+          "output": "$(e:scriptsPath)/$(f:name).sql",
+          "templates": {
+            "pre": [
+              ":setvar path \"$(path)\"",
+              "$(preScript)"
+            ],
+            "item": "$(itemScript)",
+            "post": [
+              "$(postScript)",
+              "PRINT 'Rolling Back...'",
+              "ROLLBACK TRANSACTION",
+              "--PRINT 'Committing...'",
+              "--COMMIT TRANSACTION"
+            ]
+          }
+        }
+      }
+    ],
+    "make-release-package": [
+      {
+        "copy": {
+          "from": "$(rootPath)/Reports",
+          "to": "$(e:packagesPath)/Reports+Templates",
+          "regex": "$(reportsRegex)"
+        }
+      },
+      {
+        "copy": {
+          "from": "$(rootPath)/Templates",
+          "to": "$(e:packagesPath)/Reports+Templates",
+          "regex": "$(templatesRegex)"
+        }
+      },
+      {
+        "copy": {
+          "from": "$(rootPath)/Scripts",
+          "to": "$(e:packagesPath)/Scripts",
+          "regex": "$(scriptsRegex)"
+        }
+      },
+      {
+        "sql": {
+          "path": "$(rootPath)/Scripts",
+          "regex": "$(scriptsRegex)",
+          "execute": false,
+          "output": "$(e:packagesPath)/$(f:name).sql",
+          "templates": {
+            "pre": [
+              ":setvar path \"$(path)\"",
+              "$(preScript)"
+            ],
+            "item": "$(itemScript)",
+            "post": [
+              "$(postScript)",
+              "PRINT 'Rolling Back...'",
+              "ROLLBACK TRANSACTION",
+              "--PRINT 'Committing...'",
+              "--COMMIT TRANSACTION"
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

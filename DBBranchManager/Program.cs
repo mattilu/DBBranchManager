@@ -1,101 +1,64 @@
 using System;
-using System.Threading;
-using DBBranchManager.Config;
-using DBBranchManager.Utils;
+using System.IO;
+using DBBranchManager.Exceptions;
+using Mono.Options;
 
 namespace DBBranchManager
 {
     public static class Program
     {
-        private static readonly TimeSpan FastExceptionTriggerSpan = TimeSpan.FromSeconds(1);
-        private const int FastExceptionBreakThreshold = 3;
-
-        private static readonly SingleThreadSynchronizationContext SyncContext = new SingleThreadSynchronizationContext();
-        private const string ConfigFilePath = @"..\..\config.json";
-
-        public static void Main(string[] args)
+        public static int Main(string[] args)
         {
-            var restart = false;
-            var exceptionsCount = 0;
-            var lastExceptionTime = DateTime.UtcNow;
-
-            Application app = null;
-            var watcher = new EnhanchedFileSystemWatcher();
-            watcher.Changed += (sender, eventArgs) =>
+            try
             {
-                Post(() =>
-                {
-                    Console.WriteLine("\nChanges detected in config file. Restarting...");
-                    restart = true;
-                    StartApp(ref app);
-                });
-            };
-
-            watcher.AddWatch(ConfigFilePath, null);
-
-            do
+                var app = new Application();
+                return app.Run(args);
+            }
+            catch (SoftFailureException ex)
             {
-                restart = false;
-                try
+                DumpException(Console.Error, ex, true);
+                return 1;
+            }
+            catch (OptionException ex)
+            {
+                Console.WriteLine(ex.Message);
+                return 1;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Unhandled {0}", ex.GetType());
+                DumpException(Console.Error, ex, false);
+                return 2;
+            }
+        }
+
+        private static void DumpException(TextWriter writer, Exception ex, bool messageOnly)
+        {
+            var indent = 0;
+            DumpOne(writer, ex, messageOnly, false, indent);
+            while (ex.InnerException != null)
+            {
+                ex = ex.InnerException;
+                indent += 2;
+                DumpOne(writer, ex, messageOnly, true, indent);
+            }
+        }
+
+        private static void DumpOne(TextWriter writer, Exception ex, bool messageOnly, bool inner, int indent)
+        {
+            var indentStr = new string(' ', indent);
+            if (inner && !messageOnly)
+                writer.WriteLine("{0}Inner Exception:", indentStr);
+            writer.WriteLine("{0}{1}", indentStr, ex.Message);
+
+            if (!messageOnly)
+            {
+                writer.WriteLine("{0} Stack Trace:", indentStr);
+                foreach (var line in ex.StackTrace.Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None))
                 {
-                    Run(() => StartApp(ref app));
+                    writer.WriteLine("{0} {1}", indentStr, line);
                 }
-                catch (SynchronizationContextCompletedException)
-                {
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(ex);
-                    var sinceLastException = DateTime.UtcNow - lastExceptionTime;
-                    if (sinceLastException < FastExceptionTriggerSpan)
-                    {
-                        if (++exceptionsCount >= FastExceptionBreakThreshold)
-                        {
-                            Console.WriteLine(@"
-Too many exception happened in too short a time. This probably means you have a broken config.
-Try to fix the problem, then press any key to continue...");
-                            Console.ReadKey(true);
-                            exceptionsCount = 0;
-                        }
-                    }
-                    else
-                    {
-                        exceptionsCount = 0;
-                    }
-                    lastExceptionTime = DateTime.UtcNow;
-                    Console.WriteLine("\nRestarting...");
-                    restart = true;
-                }
-            } while (restart);
-        }
-
-        private static void StartApp(ref Application curApp)
-        {
-            if (curApp != null)
-                curApp.Dispose();
-
-            var config = Configuration.LoadFromJson(ConfigFilePath);
-            curApp = new Application(config);
-            curApp.Start();
-        }
-
-        private static void Run(Action func)
-        {
-            SynchronizationContext.SetSynchronizationContext(SyncContext);
-
-            Post(func);
-
-            SyncContext.Run();
-        }
-
-        public static void Post(Action func)
-        {
-            SyncContext.Post(state => func(), null);
-        }
-
-        public static void Exit()
-        {
-            SyncContext.Complete();
+            }
         }
     }
 }

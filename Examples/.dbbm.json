@@ -1,0 +1,44 @@
+{
+  "activeRelease": "next",
+  "databases": {
+    "connection": {
+      "server": "localhost",
+      "user": "sa",
+      "password": "xxxxx",
+      "relocatePath": "D:/Databases",
+      "relocate": true
+    },
+    "backups": {
+      "root": "D:/Databases/Backups",
+      "pattern": "^(?<dbName>\\w+)\\.\\[(?<release>[\\w.]+)]\\.(?<env>\\w+)\\.bak$"
+    }
+  },
+  "envVariables": {
+    "packagesPath": "E:/Packages",
+    "scriptsPath": "E:/ScriptsSII",
+    "environment": "dev"
+  },
+  "cache": {
+    "rootPath": "D:/dbbmc",
+    "minDeployTime": 10000,
+    "maxCacheSize": "10G",
+    "autoGC": true,
+    "disabled": false
+  },
+  "beeps": {
+    "start": {
+      "frequency": 1000,
+      "duration": 250
+    },
+    "success": {
+      "frequency": 800,
+      "duration": 250
+    },
+    "error": {
+      "frequency": 800,
+      "duration": 600,
+      "pulses": 2,
+      "dutyCycle": 0.75
+    }
+  }
+}

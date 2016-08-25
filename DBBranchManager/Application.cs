@@ -1,196 +1,73 @@
-﻿using System;
-using System.Linq;
-using System.Threading;
-using DBBranchManager.Components;
-using DBBranchManager.Config;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using DBBranchManager.Commands;
 using DBBranchManager.Constants;
-using DBBranchManager.Dependencies;
-using DBBranchManager.Utils;
+using DBBranchManager.Entities;
+using DBBranchManager.Entities.Config;
+using DBBranchManager.Exceptions;
+using DBBranchManager.Logging;
+using Mono.Options;
 
 namespace DBBranchManager
 {
-    internal class Application : IDisposable
+    internal class Application
     {
-        private readonly CancellationTokenSource mCancellationTokenSource = new CancellationTokenSource();
-        private readonly Configuration mConfiguration;
-        private readonly IComponent mRootComponent;
-        private bool mDisposed;
+        private readonly Dictionary<string, DbbmCommand> mSubCommands;
+        private readonly ApplicationContext mApplicationContext;
 
-        public Application(Configuration config)
+        public Application()
         {
-            mConfiguration = config;
-            mRootComponent = new DeployComponent(CreateBranchGraph(config), config.BackupBranch, config.ActiveBranch, config.Databases);
-        }
-
-        public void Start()
-        {
-            Console.WriteLine("Awaiting commands...");
-            BeginConsoleInput();
-        }
-
-        private IDependencyGraph<BranchInfo> CreateBranchGraph(Configuration config)
-        {
-            var branchesByName = config.Branches.ToDictionary(x => x.Name);
-            var graph = new DependencyGraph<BranchInfo>();
-
-            foreach (var branchInfo in config.Branches)
+            mSubCommands = new Dictionary<string, DbbmCommand>
             {
-                if (branchInfo.Parent != null)
-                {
-                    var source = branchesByName[branchInfo.Parent];
-                    var target = branchesByName[branchInfo.Name];
-                    graph.AddDependency(source, target);
-                }
-                else
-                {
-                    graph.AddNode(branchesByName[branchInfo.Name]);
-                }
-            }
+                { CommandConstants.Deploy, new DbbmDeployCommand() },
+                { CommandConstants.Run, new DbbmRunCommand() },
+                { CommandConstants.GarbageCollect, new DbbmGarbageCollectCommand() }
+            };
+            mSubCommands.Add(CommandConstants.Help, new DbbmHelpCommand(mSubCommands));
 
-            return graph;
+            var projectRoot = DiscoverProjectRoot();
+            var projectConfig = ProjectConfig.LoadFromJson(Path.Combine(projectRoot, FileConstants.ProjectFileName));
+            var userConfig = UserConfig.LoadFromJson(Path.Combine(projectRoot, FileConstants.UserFileName));
+
+            mApplicationContext = new ApplicationContext(projectRoot, projectConfig, userConfig, new ConsoleLog());
         }
 
-        private async void BeginConsoleInput()
+        public int Run(string[] args)
         {
-            while (!mDisposed)
+            var showHelp = false;
+            var p = new OptionSet
             {
-                try
-                {
-                    var line = await ConsoleUtils.ReadLineAsync(mCancellationTokenSource.Token);
-                    if (mDisposed)
-                        return;
-                    OnConsoleInput(line);
-                }
-                catch (OperationCanceledException)
-                {
-                    return;
-                }
-            }
+                { "h|help", "Display usage help and exit", v => showHelp = v != null }
+            };
+
+            var extra = p.Parse(args);
+            if (extra.Count == 0)
+                extra.Add(CommandConstants.Help);
+            else if (showHelp)
+                extra.Add("--help");
+
+            DbbmCommand cmd;
+            if (!mSubCommands.TryGetValue(extra[0], out cmd))
+                throw new SoftFailureException(string.Format("Unknown command: {0}", extra[0]));
+
+            cmd.Run(mApplicationContext, extra);
+
+            return 0;
         }
 
-        private void OnConsoleInput(string line)
+        private static string DiscoverProjectRoot()
         {
-            var argv = line.Trim().Split(new[] { " " }, StringSplitOptions.RemoveEmptyEntries);
-
-            if (argv.Length == 0)
-                return;
-
-            var cmd = argv[0];
-            switch (cmd.ToLower())
+            var path = Environment.CurrentDirectory;
+            do
             {
-                case "force":
-                case "f":
-                {
-                    string env = null;
-                    var skipRestore = false;
-                    for (var i = 1; i < argv.Length; ++i)
-                    {
-                        var arg = argv[i];
-                        if (arg == "-s" || arg == "--skip-restore")
-                            skipRestore = true;
-                        else if (env == null)
-                            env = arg;
-                    }
+                if (File.Exists(Path.Combine(path, FileConstants.ProjectFileName)))
+                    return path;
 
-                    if (env == null)
-                        env = mConfiguration.Environment;
+                path = Path.GetDirectoryName(path);
+            } while (path != null);
 
-                    RunDeploy(env, skipRestore);
-                    break;
-                }
-
-                case "quit":
-                case "q":
-                    Program.Exit();
-                    break;
-
-                case ActionConstants.GenerateScripts:
-                case "gs":
-                case "g":
-                {
-                    var env = argv.Length > 1 ? argv[1] : mConfiguration.Environment;
-                    RunAction(ActionConstants.GenerateScripts, env);
-                    break;
-                }
-
-                case ActionConstants.MakeReleasePackage:
-                case "rp":
-                {
-                    var env = argv.Length > 1 ? argv[1] : mConfiguration.Environment;
-                    RunAction(ActionConstants.MakeReleasePackage, env);
-                    break;
-                }
-
-                case "t":
-                    throw new Exception();
-            }
-        }
-
-        private void RunDeploy(string environment, bool skipRestore)
-        {
-            Program.Post(() =>
-            {
-                Console.WriteLine("[{0:T}] Shit's going down!\n", DateTime.Now);
-                Beep("start");
-
-                var runState = new ComponentRunContext(mConfiguration, environment, skipRestore);
-                if (RunComponent(ActionConstants.Deploy, runState))
-                    Beep("success");
-                else
-                    Beep("error");
-            });
-        }
-
-        private void RunAction(string action, string env)
-        {
-            Program.Post(() => { RunComponent(action, new ComponentRunContext(mConfiguration, env)); });
-        }
-
-        private bool RunComponent(string action, ComponentRunContext runState)
-        {
-            Console.WriteLine("[{0:T}] Running '{1}' action", DateTime.Now, action);
-
-            foreach (var log in mRootComponent.Run(action, runState))
-            {
-                Console.WriteLine("[{0:T}] {1}{2}", DateTime.Now, new string(' ', runState.Depth * 2), log);
-                if (runState.Error)
-                {
-                    Console.WriteLine("[{0:T}] Blocking Errors Detected ):", DateTime.Now);
-                    return false;
-                }
-            }
-
-            Console.WriteLine("\n[{0:T}] Success!\n", DateTime.Now);
-            return true;
-        }
-
-        private void Beep(string reason)
-        {
-            BeepInfo beep;
-            if (mConfiguration.Beeps.TryGetValue(reason, out beep))
-            {
-                Buzzer.Beep(beep.Frequency, beep.Duration, beep.Times, beep.DutyTime);
-            }
-        }
-
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (mDisposed)
-                return;
-
-            if (disposing)
-            {
-                mCancellationTokenSource.Cancel();
-                mCancellationTokenSource.Dispose();
-            }
-
-            mDisposed = true;
+            throw new SoftFailureException("Cannot find project root");
         }
     }
 }
