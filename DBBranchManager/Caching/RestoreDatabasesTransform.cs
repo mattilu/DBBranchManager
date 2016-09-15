@@ -5,6 +5,7 @@ using System.Text;
 using DBBranchManager.Entities;
 using DBBranchManager.Entities.Config;
 using DBBranchManager.Logging;
+using DBBranchManager.Tasks;
 using DBBranchManager.Utils;
 using DBBranchManager.Utils.Sql;
 
@@ -21,6 +22,10 @@ namespace DBBranchManager.Caching
             mDatabaseConnection = databaseConnection;
             mDatabases = databases;
             mKnownState = knownState;
+        }
+
+        public void GetRequirements(IRequirementSink sink)
+        {
         }
 
         public StateHash CalculateTransform(StateHash currentHash)

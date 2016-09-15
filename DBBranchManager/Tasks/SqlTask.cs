@@ -19,6 +19,10 @@ namespace DBBranchManager.Tasks
             get { return TaskName; }
         }
 
+        public void GetRequirements(TaskExecutionContext context, IRequirementSink sink)
+        {
+        }
+
         public void Simulate(TaskExecutionContext context, ref StateHash hash)
         {
             hash = ExecuteCore(context, hash, false);

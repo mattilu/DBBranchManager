@@ -11,12 +11,14 @@ namespace DBBranchManager.Entities.Config
     {
         private readonly string mName;
         private readonly DefinitionsConfig mDefinitions;
+        private readonly RequirementsConfig mRequirements;
         private readonly CommandsConfig mCommands;
 
-        public TaskDefinitionConfig(string name, DefinitionsConfig definitions, CommandsConfig commands)
+        public TaskDefinitionConfig(string name, DefinitionsConfig definitions, RequirementsConfig requirements, CommandsConfig commands)
         {
             mName = name;
             mDefinitions = definitions;
+            mRequirements = requirements;
             mCommands = commands;
         }
 
@@ -28,6 +30,11 @@ namespace DBBranchManager.Entities.Config
         public DefinitionsConfig Definitions
         {
             get { return mDefinitions; }
+        }
+
+        public RequirementsConfig Requirements
+        {
+            get { return mRequirements; }
         }
 
         public CommandsConfig Commands
@@ -46,6 +53,7 @@ namespace DBBranchManager.Entities.Config
                 return new TaskDefinitionConfig(
                     jConfig["name"].Value<string>(),
                     DefinitionsConfig.LoadFromJObject((JObject)jConfig["define"]),
+                    RequirementsConfig.LoadFromJObject((JObject)jConfig["require"]),
                     CommandsConfig.LoadFromJObject(jConfig["commands"].Value<JObject>()));
             }
         }
@@ -94,6 +102,43 @@ namespace DBBranchManager.Entities.Config
                         jProperty.Value.Value<string>();
 
                     result.mDefinitions.Add(name, value);
+                }
+
+                return result;
+            }
+        }
+
+        public class RequirementsConfig : IEnumerable<KeyValuePair<string, IEnumerable<string>>>
+        {
+            private readonly Dictionary<string, List<string>> mRequirements;
+
+            private RequirementsConfig()
+            {
+                mRequirements = new Dictionary<string, List<string>>();
+            }
+
+            public IEnumerator<KeyValuePair<string, IEnumerable<string>>> GetEnumerator()
+            {
+                return mRequirements.Select(kvp => new KeyValuePair<string, IEnumerable<string>>(kvp.Key, kvp.Value)).GetEnumerator();
+            }
+
+            IEnumerator IEnumerable.GetEnumerator()
+            {
+                return GetEnumerator();
+            }
+
+            public static RequirementsConfig LoadFromJObject(JObject jObject)
+            {
+                var result = new RequirementsConfig();
+                if (jObject == null)
+                    return result;
+
+                foreach (var jProperty in jObject.Properties())
+                {
+                    var type = jProperty.Name;
+                    var args = jProperty.Value.Value<JArray>().Select(x => x.Value<string>());
+
+                    result.mRequirements.Add(type, args.ToList());
                 }
 
                 return result;

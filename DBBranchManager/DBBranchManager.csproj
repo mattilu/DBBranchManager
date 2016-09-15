@@ -98,9 +98,11 @@
     <Compile Include="Logging\ILog.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Tasks\CheckingRequirementSink.cs" />
     <Compile Include="Tasks\CopyTask.cs" />
     <Compile Include="Tasks\CustomTask.cs" />
     <Compile Include="Tasks\DontRegisterAttribute.cs" />
+    <Compile Include="Tasks\IRequirementSink.cs" />
     <Compile Include="Tasks\ITask.cs" />
     <Compile Include="Caching\RestoreDatabasesTransform.cs" />
     <Compile Include="Tasks\SqlTask.cs" />

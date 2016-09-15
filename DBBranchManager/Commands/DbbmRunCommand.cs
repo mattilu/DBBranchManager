@@ -55,6 +55,11 @@ namespace DBBranchManager.Commands
                 root.AddChild(BuildReleaseNode(context, release));
             }
 
+            var sink = new CheckingRequirementSink(context.ApplicationContext.Log);
+            root.GetRequirements(sink);
+            if (sink.Finish())
+                throw new SoftFailureException("Command aborted due to unmet requirements.");
+
             root.Run(context);
         }
 
@@ -112,6 +117,21 @@ namespace DBBranchManager.Commands
                     throw new InvalidOperationException("Cannot add child nodes to an action-initialized execution node");
 
                 mChildren.Add(child);
+            }
+
+            public void GetRequirements(IRequirementSink sink)
+            {
+                if (mTask != null)
+                {
+                    mTask.GetRequirements(mTaskContext, sink);
+                }
+                else if (mChildren.Count > 0)
+                {
+                    foreach (var child in mChildren)
+                    {
+                        child.GetRequirements(sink);
+                    }
+                }
             }
 
             public void Run(RunContext context)
