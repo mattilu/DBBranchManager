@@ -14,6 +14,11 @@ namespace DBBranchManager.Caching
             mContext = context;
         }
 
+        public void GetRequirements(IRequirementSink sink)
+        {
+            mTask.GetRequirements(mContext, sink);
+        }
+
         public StateHash CalculateTransform(StateHash currentHash)
         {
             mTask.Simulate(mContext, ref currentHash);

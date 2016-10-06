@@ -1,5 +1,10 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using DBBranchManager.Caching;
 using DBBranchManager.Entities.Config;
+using DBBranchManager.Exceptions;
 using DBBranchManager.Utils;
 
 namespace DBBranchManager.Tasks
@@ -19,6 +24,21 @@ namespace DBBranchManager.Tasks
         public string Name
         {
             get { return mTaskDefinition.Name; }
+        }
+
+        public void GetRequirements(TaskExecutionContext context, IRequirementSink sink)
+        {
+            var feature = new Lazy<string>(() => string.Format("Feature '{0}'", context.Feature.Name));
+
+            foreach (var kvp in mTaskDefinition.Requirements)
+            {
+                var v = CreateVerifier(kvp.Key);
+                foreach (var val in kvp.Value)
+                {
+                    var arg = val;
+                    sink.Add(feature.Value, () => v.Verify(context, arg));
+                }
+            }
         }
 
         public void Simulate(TaskExecutionContext context, ref StateHash hash)
@@ -61,6 +81,34 @@ namespace DBBranchManager.Tasks
             }
 
             return hash;
+        }
+
+        private static IRequirementVerifier CreateVerifier(string type)
+        {
+            switch (type)
+            {
+                case "paths":
+                    return new PathsVerifier();
+
+                default:
+                    throw new SoftFailureException(string.Format("Unknown requirement type '{0}'", type));
+            }
+        }
+
+        private interface IRequirementVerifier
+        {
+            Tuple<bool, string> Verify(TaskExecutionContext context, string arg);
+        }
+
+        private class PathsVerifier : IRequirementVerifier
+        {
+            public Tuple<bool, string> Verify(TaskExecutionContext context, string arg)
+            {
+                var dir = new DirectoryInfo(context.Replacer.ReplaceVariables(arg));
+                return dir.Exists ?
+                    Tuple.Create(true, string.Format("Directory '{0}' exists", dir.FullName)) :
+                    Tuple.Create(false, string.Format("Directory '{0}' does not exist", dir.FullName));
+            }
         }
     }
 }

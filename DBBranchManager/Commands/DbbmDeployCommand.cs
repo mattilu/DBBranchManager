@@ -84,6 +84,11 @@ namespace DBBranchManager.Commands
                     }
                 }
 
+                var sink = new CheckingRequirementSink(context.ApplicationContext.Log);
+                root.GetRequirements(sink);
+                if (sink.Finish())
+                    throw new SoftFailureException("Command aborted due to unmet requirements.");
+
                 root.Run(context, startingHash ?? hash, context.CacheManager);
 
                 CleanResumeHash(context);
@@ -369,6 +374,21 @@ namespace DBBranchManager.Commands
                 }
 
                 return Tuple.Create(this, hash, false, (StateHash)null);
+            }
+
+            public void GetRequirements(IRequirementSink sink)
+            {
+                if (mTransform != null)
+                {
+                    mTransform.GetRequirements(sink);
+                }
+                else if (mChildren.Count > 0)
+                {
+                    foreach (var child in mChildren)
+                    {
+                        child.GetRequirements(sink);
+                    }
+                }
             }
 
             public StateHash Run(DeployContext context, StateHash hash, ICacheManager cacheManager, bool first = true, bool last = true)

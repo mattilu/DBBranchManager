@@ -31,6 +31,9 @@
     "templatesRegex": "^TPL_\\d+_.+\\.xls[mx]?$",
     "scriptsRegex": "^\\d+(?:-(?<env>[^.]+))?\\..*\\.sql$"
   },
+  "requires": {
+    "paths": [ "$(rootPath)" ]
+  },
   "commands": {
     "deploy": [
       {
