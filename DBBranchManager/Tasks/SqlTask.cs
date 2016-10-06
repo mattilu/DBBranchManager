@@ -50,7 +50,7 @@ namespace DBBranchManager.Tasks
             {
                 if (output != null)
                 {
-                    context.Log.Log("Generating {0}");
+                    context.Log.LogFormat("Generating {0}", output);
 
                     if (!context.DryRun)
                         File.WriteAllText(output, script);
