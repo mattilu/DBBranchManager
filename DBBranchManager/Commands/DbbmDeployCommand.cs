@@ -91,7 +91,8 @@ namespace DBBranchManager.Commands
 
                 root.Run(context, startingHash ?? hash, context.CacheManager);
 
-                CleanResumeHash(context);
+                if (!context.DryRun)
+                    CleanResumeHash(context);
             }
             catch (SoftFailureException ex)
             {
@@ -403,8 +404,11 @@ namespace DBBranchManager.Commands
                     hash = mTransform.RunTransform(hash, context.DryRun, context.ApplicationContext.Log);
                     stopWatch.Stop();
 
-                    var rhf = GetResumeHashFile(context);
-                    File.WriteAllText(rhf.FullName, hash.ToHexString());
+                    if (!context.DryRun)
+                    {
+                        var rhf = GetResumeHashFile(context);
+                        File.WriteAllText(rhf.FullName, hash.ToHexString());
+                    }
 
                     if (!first && !last && stopWatch.Elapsed >= context.ApplicationContext.UserConfig.Cache.MinDeployTime)
                     {
